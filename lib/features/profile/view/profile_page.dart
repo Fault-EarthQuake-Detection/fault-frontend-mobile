@@ -1,13 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../sidebar/view/sidebar_drawer.dart';
+import '../../auth/viewmodel/auth_viewmodel.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 1. Ambil data user dari provider yang kita buat tadi
+    final userAsync = ref.watch(currentUserProvider);
+
+    // Default values jika data belum siap
+    String displayName = "GeoValid User";
+    String email = "user@geovalid.com";
+    String? photoUrl;
+
+    // 2. Ekstrak data jika user ada
+    userAsync.whenData((user) {
+      if (user != null) {
+        email = user.email ?? "No Email";
+
+        // Ambil nama dari metadata (biasanya dari Google Login atau update profile)
+        // Cek 'full_name', kalau null cek 'name', kalau null pakai bagian depan email
+        final metadata = user.userMetadata;
+        displayName = metadata?['full_name'] ??
+            metadata?['name'] ??
+            email.split('@')[0];
+
+        // Ambil foto profil
+        photoUrl = metadata?['avatar_url'] ?? metadata?['picture'];
+      }
+    });
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       drawer: const SidebarDrawer(),
@@ -32,6 +60,7 @@ class ProfilePage extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // HEADER BACKGROUND
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(bottom: 60),
@@ -53,6 +82,8 @@ class ProfilePage extends StatelessWidget {
                 ],
               ),
             ),
+
+            // INFO USER (AVATAR & NAMA)
             Transform.translate(
               offset: const Offset(0, -70),
               child: Column(
@@ -60,41 +91,62 @@ class ProfilePage extends StatelessWidget {
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Colors.white,
+                      // Lingkaran Avatar
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4), // Border putih tebal
+                        ),
                         child: CircleAvatar(
                           radius: 56,
                           backgroundColor: Colors.grey.shade300,
-                          child: const Icon(Icons.person, size: 70, color: Colors.white70),
+                          // Logika Gambar: Jika ada URL -> Pakai NetworkImage, Jika tidak -> Icon
+                          backgroundImage: (photoUrl != null) ? NetworkImage(photoUrl!) : null,
+                          child: (photoUrl == null)
+                              ? const Icon(Icons.person, size: 70, color: Colors.white70)
+                              : null,
                         ),
                       ),
+
+                      // Tombol Ganti Foto
                       Positioned(
                         right: 0,
                         bottom: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD46E46),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                        child: InkWell(
+                          onTap: () {
+                            // TODO: Implementasi Image Picker & Upload ke Supabase Storage
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Fitur ubah foto akan segera hadir!")),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD46E46),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                           ),
-                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
+
+                  // Nama User Dinamis
                   Text(
-                    "GeoValid User",
+                    displayName,
                     style: GoogleFonts.poppins(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF3E2723),
                     ),
                   ),
+
+                  // Email User Dinamis
                   Text(
-                    "user@geovalid.com",
+                    email,
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       color: Colors.grey.shade600,
@@ -103,7 +155,10 @@ class ProfilePage extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+
+            const SizedBox(height: 10),
+
+            // MENU LIST
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
@@ -120,12 +175,14 @@ class ProfilePage extends StatelessWidget {
                     onTap: () => context.push('/about'),
                   ),
                   const SizedBox(height: 12),
+
+                  // 🔴 LOGOUT DENGAN DIALOG
                   _buildProfileMenuItem(
                     icon: Icons.logout,
                     title: "Keluar",
                     isLogout: true,
                     onTap: () {
-                      context.go('/login');
+                      _showLogoutDialog(context, ref);
                     },
                   ),
                 ],
@@ -138,6 +195,52 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  // 🔥 FUNGSI DIALOG LOGOUT
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: Text(
+          "Konfirmasi Keluar",
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF3E2723)),
+        ),
+        content: Text(
+          "Apakah Anda yakin ingin keluar dari akun ini?",
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx), // Tutup dialog
+            child: Text(
+              "Batal",
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx); // Tutup dialog dulu
+
+              // Proses Logout
+              await ref.read(authViewModelProvider.notifier).logout();
+
+              if (context.mounted) {
+                context.go('/login');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade400,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text("Ya, Keluar", style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // HELPER WIDGET ITEM MENU
   Widget _buildProfileMenuItem({
     required IconData icon,
     required String title,
@@ -165,10 +268,17 @@ class ProfilePage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  color: isLogout ? Colors.red.shade600 : const Color(0xFFD46E46),
-                  size: 24,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isLogout ? Colors.red.shade50 : const Color(0xFFD46E46).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isLogout ? Colors.red.shade600 : const Color(0xFFD46E46),
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -183,8 +293,8 @@ class ProfilePage extends StatelessWidget {
                 ),
                 Icon(
                   Icons.arrow_forward_ios,
-                  color: isLogout ? Colors.red.shade300 : Colors.grey.shade400,
-                  size: 18,
+                  color: isLogout ? Colors.red.shade200 : Colors.grey.shade400,
+                  size: 16,
                 ),
               ],
             ),
