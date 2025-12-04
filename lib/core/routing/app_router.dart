@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Import semua halaman (sesuai struktur folder kamu)
+// Import semua halaman
 import '../../features/auth/view/splash_page.dart';
 import '../../features/auth/view/launch_page.dart';
 import '../../features/auth/view/login_page.dart';
 import '../../features/auth/view/register_page.dart';
-import '../../features/home/view/home_page.dart'; // Jika dibutuhkan direct access (jarang)
+import '../../features/home/view/home_page.dart';
 import '../../features/home/view/main_navigation.dart';
 import '../../features/detection/view/detection_page.dart';
 import '../../features/maps/view/maps_page.dart';
@@ -32,10 +32,12 @@ class AppRouter {
           path == '/login' ||
           path == '/register';
 
+      // 1. Jika User SUDAH Login, tapi ada di halaman Auth -> Lempar ke Home
       if (isLoggedIn && isAuthPage) {
         return '/home';
       }
 
+      // 2. Jika User BELUM Login, tapi mau masuk halaman dalam -> Lempar ke Launch
       if (!isLoggedIn && !isAuthPage) {
         return '/launch';
       }
@@ -76,21 +78,22 @@ class AppRouter {
           path: '/location-picker',
           builder: (_, __) => const LocationPickerPage()
       ),
+
+      // 🔥 PERBAIKAN DI SINI: Tidak perlu passing parameter lagi
       GoRoute(
         path: '/result',
         builder: (context, state) {
-          final args = state.extra as Map<String, dynamic>?;
-          return DetectionResultPage(
-            resultTitle: args?['title'] ?? "Riwayat Deteksi",
-          );
+          return const DetectionResultPage();
         },
       ),
+
       GoRoute(
           path: '/maps',
           builder: (_, __) => const MapsPage()
       ),
       // GoRoute(path: '/chatbot', builder: (_, __) => const ChatbotPage()),
 
+      // --- PROFILE ROUTES ---
       GoRoute(
           path: '/profile',
           builder: (_, __) => const ProfilePage()

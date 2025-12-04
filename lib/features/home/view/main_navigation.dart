@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart'; // Import ini
 
 import 'home_page.dart';
 import '../../detection/view/detection_page.dart';
@@ -24,6 +25,20 @@ class _MainNavigationState extends State<MainNavigation> {
     const ProfilePage(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _requestInitialPermissions();
+  }
+
+  Future<void> _requestInitialPermissions() async {
+    await [
+      Permission.camera,
+      Permission.location,
+      Permission.photos,
+    ].request();
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -41,7 +56,10 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
