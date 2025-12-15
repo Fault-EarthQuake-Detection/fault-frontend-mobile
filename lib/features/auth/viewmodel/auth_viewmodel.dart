@@ -32,13 +32,17 @@ class AuthState {
 
 class AuthViewModel extends StateNotifier<AuthState> {
   final AuthRepository _repository;
+  final Ref _ref;
 
-  AuthViewModel(this._repository) : super(AuthState());
+  AuthViewModel(this._repository, this._ref) : super(AuthState());
 
   Future<void> login(String username, String password) async {
     state = AuthState(isLoading: true);
     try {
       await _repository.login(username: username, password: password);
+
+      _ref.invalidate(currentUserProvider);
+
       state = AuthState(isSuccess: true, isLoading: false);
     } catch (e) {
       state = AuthState(error: _toMessage(e), isLoading: false);
@@ -59,6 +63,9 @@ class AuthViewModel extends StateNotifier<AuthState> {
     state = AuthState(isLoading: true);
     try {
       await _repository.googleSignIn();
+
+      _ref.invalidate(currentUserProvider);
+
       state = AuthState(isSuccess: true, isLoading: false);
     } catch (e) {
       state = AuthState(error: _toMessage(e), isLoading: false);
@@ -67,6 +74,9 @@ class AuthViewModel extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _repository.logout();
+
+    _ref.invalidate(currentUserProvider);
+
     state = AuthState();
   }
 
@@ -87,6 +97,8 @@ class AuthViewModel extends StateNotifier<AuthState> {
       }
 
       await _repository.updateProfile(username: username, avatarUrl: avatarUrl);
+
+      _ref.invalidate(currentUserProvider);
 
       state = AuthState(isSuccess: true, isLoading: false);
     } catch (e) {
@@ -114,17 +126,15 @@ class AuthViewModel extends StateNotifier<AuthState> {
   }
 }
 
-// Providers
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository();
 });
 
 final authViewModelProvider = StateNotifierProvider<AuthViewModel, AuthState>((ref) {
   final repo = ref.read(authRepositoryProvider);
-  return AuthViewModel(repo);
+  return AuthViewModel(repo, ref);
 });
 
-// currentUserProvider reads from SessionService
 final currentUserProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   return await SessionService.getUser();
 });
