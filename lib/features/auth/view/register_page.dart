@@ -1,3 +1,5 @@
+// lib/features/auth/view/register_page.dart
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -105,7 +107,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     controller: _passwordController,
                     isVisible: _isPasswordVisible,
                     onToggle: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                    isMainPassword: true, // Cek minimal 8 karakter
+                    isMainPassword: true,
                   ),
 
                   const SizedBox(height: 12),

@@ -1,3 +1,5 @@
+// lib/features/auth/view/login_page.dart
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,8 +16,7 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
 
@@ -24,7 +25,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -39,10 +40,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         context.go('/home');
       } else if (next.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.error!),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(next.error!), backgroundColor: Colors.red),
         );
       }
     });
@@ -61,29 +59,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 children: [
                   SizedBox(
                     height: size.height * 0.12,
-                    child: Image.asset(
-                      'assets/Logo.png',
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.asset('assets/Logo.png', fit: BoxFit.contain),
                   ),
                   Text(
                     "GeoValid",
-                    style: GoogleFonts.poppins(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF3E2723),
-                    ),
+                    style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF3E2723)),
                   ),
                   const SizedBox(height: 40),
 
-                  // INPUT EMAIL
-                  _buildInputLabel("Email"),
+                  _buildInputLabel("Username"),
                   const SizedBox(height: 6),
-                  _buildTextField(
-                    hint: "Email",
-                    controller: _emailController,
-                    isEmail: true,
-                  ),
+                  _buildTextField(hint: "Username", controller: _usernameController, isEmail: false),
 
                   const SizedBox(height: 16),
 
@@ -107,7 +93,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           : () {
                         if (_formKey.currentState!.validate()) {
                           ref.read(authViewModelProvider.notifier).login(
-                            _emailController.text.trim(),
+                            _usernameController.text.trim(),
                             _passwordController.text.trim(),
                           );
                         }
@@ -116,56 +102,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         backgroundColor: const Color(0xFFD46E46),
                         foregroundColor: Colors.white,
                         elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
                       child: authState.isLoading
-                          ? const SizedBox(
-                        height: 24, width: 24,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                          : Text(
-                        "Masuk",
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                          ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text("Masuk", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
 
                   const SizedBox(height: 32),
-                  Text(
-                    "Atau masuk dengan",
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
+                  Text("Atau masuk dengan", style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600)),
                   const SizedBox(height: 12),
 
                   InkWell(
-                    onTap: authState.isLoading
-                        ? null
-                        : () {
-                      ref.read(authViewModelProvider.notifier).loginWithGoogle();
-                    },
+                    onTap: authState.isLoading ? null : () => ref.read(authViewModelProvider.notifier).loginWithGoogle(),
                     borderRadius: BorderRadius.circular(50),
                     child: Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey.shade200),
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
+                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade200), color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))]),
                       child: Image.asset('assets/google.png', height: 24),
                     ),
                   ),
@@ -175,19 +129,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   RichText(
                     text: TextSpan(
                       text: "Belum punya akun? ",
-                      style: GoogleFonts.poppins(
-                        color: Colors.grey.shade600,
-                        fontSize: 13,
-                      ),
+                      style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 13),
                       children: [
                         TextSpan(
                           text: "Daftar",
-                          style: GoogleFonts.poppins(
-                            color: const Color(0xFF007BFF),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () => context.push('/register'),
+                          style: GoogleFonts.poppins(color: const Color(0xFF007BFF), fontWeight: FontWeight.w600),
+                          recognizer: TapGestureRecognizer()..onTap = () => context.push('/register'),
                         ),
                       ],
                     ),
@@ -207,30 +154,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       child: RichText(
         text: TextSpan(
           text: label,
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: _labelColor,
-          ),
+          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: _labelColor),
           children: [
-            TextSpan(
-              text: " *",
-              style: GoogleFonts.poppins(
-                color: Colors.red,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            TextSpan(text: " *", style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.w500)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTextField({
-    required String hint,
-    required TextEditingController controller,
-    bool isEmail = false,
-  }) {
+  Widget _buildTextField({required String hint, required TextEditingController controller, bool isEmail = false}) {
     return TextFormField(
       controller: controller,
       keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
@@ -244,26 +177,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         errorStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.red),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Tidak boleh kosong';
-        }
+        if (value == null || value.isEmpty) return 'Tidak boleh kosong';
         if (isEmail) {
           final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-          if (!emailRegex.hasMatch(value)) {
-            return 'Format email tidak valid';
-          }
+          if (!emailRegex.hasMatch(value)) return 'Format email tidak valid';
         }
         return null;
       },
     );
   }
 
-  Widget _buildPasswordField({
-    required String hint,
-    required TextEditingController controller,
-    required bool isVisible,
-    required VoidCallback onToggle,
-  }) {
+  Widget _buildPasswordField({required String hint, required TextEditingController controller, required bool isVisible, required VoidCallback onToggle}) {
     return TextFormField(
       controller: controller,
       obscureText: !isVisible,
@@ -275,11 +199,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         suffixIcon: IconButton(icon: Icon(isVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _earthyColor), onPressed: onToggle),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _earthyColor)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFD46E46), width: 2)),
+        errorStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.red),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Password tidak boleh kosong';
-        }
+        if (value == null || value.isEmpty) return 'Password tidak boleh kosong';
         return null;
       },
     );

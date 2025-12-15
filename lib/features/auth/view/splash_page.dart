@@ -1,7 +1,8 @@
+// lib/features/auth/view/splash_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/services/session_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -15,8 +16,12 @@ class _SplashPageState extends State<SplashPage> {
   void initState() {
     super.initState();
 
-    Future.delayed(const Duration(seconds: 3), () {
-      if (Supabase.instance.client.auth.currentSession != null) {
+    Future.delayed(const Duration(seconds: 2), () async {
+      final token = await SessionService.getToken();
+
+      if (!mounted) return;
+
+      if (token != null && token.isNotEmpty) {
         context.go('/home');
       } else {
         context.go('/launch');
@@ -47,9 +52,7 @@ class _SplashPageState extends State<SplashPage> {
                 style: GoogleFonts.poppins(
                   fontSize: 28,
                   fontWeight: FontWeight.w600,
-                  color: theme.brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black87,
+                  color: theme.brightness == Brightness.dark ? Colors.white : Colors.black87,
                 ),
               ),
               const SizedBox(height: 8),
@@ -59,9 +62,7 @@ class _SplashPageState extends State<SplashPage> {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
-                  color: theme.brightness == Brightness.dark
-                      ? Colors.white70
-                      : Colors.black87,
+                  color: theme.brightness == Brightness.dark ? Colors.white70 : Colors.black87,
                   height: 1.4,
                 ),
               ),
