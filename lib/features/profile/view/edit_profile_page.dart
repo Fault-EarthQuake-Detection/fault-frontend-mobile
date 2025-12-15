@@ -19,7 +19,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
 
-  // Controller Password
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -40,7 +39,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   }
 
   void _loadUserData() async {
-    // Gunakan ref.read untuk ambil data awal sekali saja
     final userMap = await ref.read(currentUserProvider.future);
 
     if (userMap != null) {
@@ -48,19 +46,15 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         _emailController.text = userMap['email'] ?? "";
 
         final metadata = userMap['user_metadata'] as Map<String, dynamic>?;
-        // Prioritas ambil username
         _usernameController.text = metadata?['username'] ?? metadata?['full_name'] ?? metadata?['name'] ?? "";
 
-        // --- PERBAIKAN LOGIKA CEK GOOGLE ---
-        _isGoogleUser = false; // Reset dulu
+        _isGoogleUser = false;
 
-        // Cek 1: App Metadata (provider string)
         final appMetadata = userMap['app_metadata'] as Map<String, dynamic>?;
         if (appMetadata != null) {
           if (appMetadata['provider'] == 'google') {
             _isGoogleUser = true;
           }
-          // Cek 2: App Metadata (providers array) - kadang supabase simpan di sini
           else if (appMetadata['providers'] is List) {
             final providers = appMetadata['providers'] as List;
             if (providers.contains('google')) {
@@ -69,7 +63,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           }
         }
 
-        // Cek 3: Identities (Paling akurat)
         if (!_isGoogleUser && userMap['identities'] is List) {
           final identities = userMap['identities'] as List;
           final hasGoogleIdentity = identities.any((id) => id['provider'] == 'google');
@@ -107,7 +100,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     final authState = ref.watch(authViewModelProvider);
     final currentUserAsync = ref.watch(currentUserProvider);
 
-    // Ambil URL foto saat ini
     String? currentPhotoUrl;
     currentUserAsync.whenData((userMap) {
       if (userMap != null) {
@@ -118,8 +110,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
     ref.listen(authViewModelProvider, (previous, next) {
       if (next.isSuccess) {
-        // Kita cek manual di onPressed, jadi listener ini bisa dikosongkan atau
-        // digunakan untuk reset loading state jika perlu.
+
       } else if (next.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.error!), backgroundColor: Colors.red),
@@ -195,7 +186,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             ),
 
             const SizedBox(height: 32),
-            _buildInputLabel("Username"), // Sudah diganti jadi Username
+            _buildInputLabel("Username"),
             const SizedBox(height: 8),
             _buildTextField(
               hint: "Username",
@@ -212,7 +203,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               enabled: false,
             ),
 
-            // 🔥 FORM GANTI PASSWORD (HANYA MUNCUL JIKA BUKAN GOOGLE USER)
             if (!_isGoogleUser) ...[
               const SizedBox(height: 30),
               const Divider(),
@@ -223,7 +213,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               ),
               const SizedBox(height: 16),
 
-              // 1. Password Lama
               _buildInputLabel("Password Lama"),
               const SizedBox(height: 8),
               _buildPasswordField(
@@ -235,7 +224,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
               const SizedBox(height: 20),
 
-              // 2. Password Baru
               _buildInputLabel("Password Baru"),
               const SizedBox(height: 8),
               _buildPasswordField(
@@ -247,7 +235,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
               const SizedBox(height: 20),
 
-              // 3. Konfirmasi Password
               _buildInputLabel("Ulangi Password Baru"),
               const SizedBox(height: 8),
               _buildPasswordField(
@@ -260,7 +247,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
             const SizedBox(height: 40),
 
-            // TOMBOL SIMPAN
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -269,7 +255,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     ? null
                     : () async {
 
-                  // 1. Cek Validasi Ganti Password (Jika diisi & Bukan Google)
                   bool isChangingPassword = _newPasswordController.text.isNotEmpty;
 
                   if (isChangingPassword && !_isGoogleUser) {
@@ -287,16 +272,11 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     }
                   }
 
-                  // 2. Eksekusi Update Profil (Username & Foto)
-                  // Pastikan di AuthViewModel parameternya bernama 'fullName' atau 'username' sesuai definisi Anda.
-                  // Di sini saya pakai 'fullName' karena di ViewModel sebelumnya namanya 'fullName',
-                  // tapi isinya adalah teks dari _usernameController.
                   await ref.read(authViewModelProvider.notifier).updateProfile(
                     username: _usernameController.text.trim(),
                     imageFile: _selectedImage,
                   );
 
-                  // 3. Eksekusi Ganti Password (Jika form diisi)
                   if (isChangingPassword && !_isGoogleUser) {
                     await ref.read(authViewModelProvider.notifier).changePassword(
                       oldPassword: _oldPasswordController.text,
@@ -304,9 +284,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     );
                   }
 
-                  // Cek sukses manual karena kita panggil 2 fungsi
                   if (context.mounted) {
-                    // Kita anggap sukses jika tidak ada error state (bisa disempurnakan dengan cek state.isSuccess)
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Perubahan berhasil disimpan!")),
                     );
