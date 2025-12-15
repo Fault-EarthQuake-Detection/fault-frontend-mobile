@@ -12,24 +12,19 @@ class ProfilePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. Ambil data user (sekarang berupa Map<String, dynamic>?)
     final userAsync = ref.watch(currentUserProvider);
 
-    // Default values
     String displayName = "GeoValid User";
     String email = "user@geovalid.com";
     String? photoUrl;
 
-    // 2. Ekstrak data jika user ada
     userAsync.whenData((userData) {
       if (userData != null) {
         email = userData['email'] ?? "No Email";
 
-        // Ambil metadata dari Map
         final metadata = userData['user_metadata'] as Map<String, dynamic>?;
 
         if (metadata != null) {
-          // Coba ambil dari berbagai kemungkinan key
           displayName = metadata['full_name'] ?? metadata['name'] ?? metadata['username'] ?? email.split('@')[0];
           photoUrl = metadata['avatar_url'] ?? metadata['picture'];
         } else {
@@ -62,7 +57,6 @@ class ProfilePage extends ConsumerWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // HEADER BACKGROUND
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(bottom: 60),
@@ -85,7 +79,6 @@ class ProfilePage extends ConsumerWidget {
               ),
             ),
 
-            // INFO USER (AVATAR & NAMA)
             Transform.translate(
               offset: const Offset(0, -70),
               child: Column(
@@ -93,28 +86,24 @@ class ProfilePage extends ConsumerWidget {
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                      // Lingkaran Avatar
                       Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 4), // Border putih tebal
+                          border: Border.all(color: Colors.white, width: 4),
                         ),
                         child: CircleAvatar(
                           radius: 56,
                           backgroundColor: Colors.grey.shade300,
-                          // Logika Gambar
                           backgroundImage: (photoUrl != null) ? NetworkImage(photoUrl!) : null,
                           child: (photoUrl == null)
                               ? const Icon(Icons.person, size: 70, color: Colors.white70)
                               : null,
                         ),
                       ),
-                      // Tombol edit foto dihapus dari sini karena sudah ada di halaman Edit Profile
                     ],
                   ),
                   const SizedBox(height: 12),
 
-                  // Nama User Dinamis
                   Text(
                     displayName,
                     style: GoogleFonts.poppins(
@@ -124,7 +113,6 @@ class ProfilePage extends ConsumerWidget {
                     ),
                   ),
 
-                  // Email User Dinamis
                   Text(
                     email,
                     style: GoogleFonts.poppins(
@@ -138,7 +126,6 @@ class ProfilePage extends ConsumerWidget {
 
             const SizedBox(height: 10),
 
-            // MENU LIST
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
@@ -156,7 +143,6 @@ class ProfilePage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // 🔴 LOGOUT DENGAN DIALOG
                   _buildProfileMenuItem(
                     icon: Icons.logout,
                     title: "Keluar",
@@ -175,7 +161,6 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  // 🔥 FUNGSI DIALOG LOGOUT
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
@@ -191,7 +176,7 @@ class ProfilePage extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx), // Tutup dialog
+            onPressed: () => Navigator.pop(ctx),
             child: Text(
               "Batal",
               style: GoogleFonts.poppins(color: Colors.grey),
@@ -199,9 +184,8 @@ class ProfilePage extends ConsumerWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx); // Tutup dialog dulu
+              Navigator.pop(ctx);
 
-              // Proses Logout
               await ref.read(authViewModelProvider.notifier).logout();
 
               if (context.mounted) {
@@ -220,7 +204,6 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  // HELPER WIDGET ITEM MENU
   Widget _buildProfileMenuItem({
     required IconData icon,
     required String title,

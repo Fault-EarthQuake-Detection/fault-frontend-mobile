@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,9 +15,52 @@ class AuthRepository {
 
   User? get currentUser => _supabase.auth.currentUser;
 
-  // ----------------------
-  // REGISTER
-  // ----------------------
+  Future<void> login({
+    required String username,
+    required String password,
+  }) async {
+    try {
+      final url = Uri.parse('${AppConstants.authBaseUrl}/login');
+      print("Attempting login to: $url");
+
+      final res = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+        }),
+      );
+
+      print("Login Response: ${res.statusCode} - ${res.body}");
+
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        throw jsonDecode(res.body)['error'] ?? "Login gagal";
+      }
+
+      final data = jsonDecode(res.body);
+
+      final sessionMap = data['session'];
+      final userMap = data['user'];
+
+      if (sessionMap == null || userMap == null) {
+        throw "Format respon backend tidak valid (session/user null)";
+      }
+
+      final refreshToken = sessionMap['refresh_token'];
+
+      if (refreshToken != null) {
+        await _supabase.auth.setSession(refreshToken);
+      }
+
+      await SessionService.saveSession(sessionMap, userMap);
+
+    } catch (e) {
+      print("Error Login: $e");
+      rethrow;
+    }
+  }
+
   Future<void> register({
     required String email,
     required String password,
@@ -30,7 +74,7 @@ class AuthRepository {
       body: jsonEncode({
         'email': email,
         'password': password,
-        'username': username
+        'username': username,
       }),
     );
 
@@ -39,95 +83,79 @@ class AuthRepository {
     }
   }
 
-  // ----------------------
-  // LOGIN (backend)
-  // ----------------------
-  Future<void> login({
-    required String username,
-    required String password,
-  }) async {
-    final url = Uri.parse('${AppConstants.authBaseUrl}/login');
-
-    final res = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': username,
-        'password': password,
-      }),
-    );
-
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw jsonDecode(res.body)['error'] ?? "Login gagal";
-    }
-
-    final data = jsonDecode(res.body);
-
-    final session = data['session'] as Map<String, dynamic>;
-    final user = data['user'] as Map<String, dynamic>;
-
-    final refreshToken = session['refresh_token'];
-
-    if (refreshToken == null || refreshToken.toString().isEmpty) {
-      throw "Refresh token tidak ditemukan pada response backend";
-    }
-
-    // ----------------------------
-    // Supabase v2.x → setSession(refresh_token)
-    // ----------------------------
-    await _supabase.auth.setSession(refreshToken);
-
-    // simpan ke SharedPreferences
-    await SessionService.saveSession(session, user);
-  }
-
-  // ----------------------
-  // LOGIN GOOGLE (Native)
-  // ----------------------
   Future<void> googleSignIn() async {
-    const webClientId =
-        "204345218481-307nql93btdhpslm76jt8u6uumm2ti98.apps.googleusercontent.com";
+    try {
+      const webClientId =
+          "204345218481-307nql93btdhpslm76jt8u6uumm2ti98.apps.googleusercontent.com";
 
-    final googleSignIn = GoogleSignIn(serverClientId: webClientId);
+      final googleSignIn = GoogleSignIn(
+        clientId: kIsWeb ? webClientId : null,
+        serverClientId: webClientId,
+      );
 
-    final googleUser = await googleSignIn.signIn();
-    final googleAuth = await googleUser?.authentication;
+      final googleUser = await googleSignIn.signIn();
+      final googleAuth = await googleUser?.authentication;
 
-    if (googleAuth == null) throw "Login Google dibatalkan";
+      if (googleAuth == null) throw "Login Google dibatalkan";
 
-    final res = await _supabase.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: googleAuth.idToken!,
-      accessToken: googleAuth.accessToken,
-    );
+      final res = await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: googleAuth.idToken!,
+        accessToken: googleAuth.accessToken,
+      );
 
-    if (res.session == null || res.user == null) {
-      throw "Google login gagal (session tidak dikembalikan)";
+      if (res.session == null || res.user == null) {
+        throw "Google login gagal (session tidak dikembalikan)";
+      }
+
+      final authSession = res.session!;
+      final supaUser = res.user!;
+
+      await _syncGoogleUserToBackend(authSession.accessToken, supaUser);
+
+      final rawSession = {
+        "access_token": authSession.accessToken,
+        "refresh_token": authSession.refreshToken,
+        "expires_at": authSession.expiresAt,
+        "token_type": authSession.tokenType,
+        "user": authSession.user?.toJson(),
+      };
+
+      await SessionService.saveSession(rawSession, supaUser.toJson());
+
+    } catch (e) {
+      print("Error Google Sign In: $e");
+      rethrow;
     }
-
-    final authSession = res.session!;
-    final supaUser = res.user!;
-
-    final rawSession = {
-      "access_token": authSession.accessToken,
-      "refresh_token": authSession.refreshToken,
-      "expires_at": authSession.expiresAt,
-      "token_type": authSession.tokenType,
-      "user": authSession.user?.toJson(),
-    };
-
-    // Supabase v2 setSession(refreshToken)
-    if (authSession.refreshToken != null &&
-        authSession.refreshToken!.isNotEmpty) {
-      await _supabase.auth.setSession(authSession.refreshToken!);
-    }
-
-    await SessionService.saveSession(rawSession, supaUser.toJson());
   }
 
-  // ----------------------
-  // LOGOUT
-  // ----------------------
+  Future<void> _syncGoogleUserToBackend(String accessToken, User user) async {
+    try {
+      final url = Uri.parse('${AppConstants.apiBaseUrl}/profile');
+
+      String username = user.userMetadata?['full_name'] ??
+          user.email?.split('@')[0] ??
+          "user_${user.id.substring(0,4)}";
+
+      username = username.replaceAll(' ', '_');
+
+      await http.put(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $accessToken",
+        },
+        body: jsonEncode({
+          "username": username,
+          "avatarUrl": user.userMetadata?['avatar_url'] ?? "",
+        }),
+      );
+      print("Google User synced to Backend successfully.");
+    } catch (e) {
+      print("Warning: Gagal sync user Google ke backend, mungkin user sudah ada atau masalah koneksi. $e");
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _supabase.auth.signOut();
@@ -140,25 +168,25 @@ class AuthRepository {
     } catch (_) {}
   }
 
-  // ----------------------
-  // UPLOAD AVATAR
-  // ----------------------
   Future<String> uploadAvatar(File file, String userId) async {
     final ext = file.path.split('.').last;
     final fileName =
         "$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext";
 
+    if (_supabase.auth.currentSession == null) {
+      final token = await SessionService.getRefreshToken();
+      if (token != null) await _supabase.auth.setSession(token);
+    }
+
     await _supabase.storage.from('avatar-profile').upload(
       fileName,
       file,
+      fileOptions: const FileOptions(upsert: true),
     );
 
     return _supabase.storage.from('avatar-profile').getPublicUrl(fileName);
   }
 
-  // ----------------------
-  // UPDATE PROFILE
-  // ----------------------
   Future<void> updateProfile({
     String? username,
     String? avatarUrl,
@@ -184,7 +212,6 @@ class AuthRepository {
       throw jsonDecode(res.body)['error'] ?? "Update profile gagal";
     }
 
-    // reload user
     try {
       final userResp = await _supabase.auth.getUser();
       final supaUser = userResp.user;
@@ -199,9 +226,6 @@ class AuthRepository {
     } catch (_) {}
   }
 
-  // ----------------------
-  // CHANGE PASSWORD
-  // ----------------------
   Future<void> changePassword({
     required String oldPassword,
     required String newPassword,
