@@ -1,26 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Import Riverpod
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'article_card.dart';
 import '../../sidebar/view/sidebar_drawer.dart';
-import '../../auth/viewmodel/auth_viewmodel.dart'; // 2. Import AuthViewModel
+import '../../auth/viewmodel/auth_viewmodel.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 1. Ambil data user (sekarang berupa Map<String, dynamic>?)
     final userAsync = ref.watch(currentUserProvider);
 
     String displayName = "";
     String? photoUrl;
 
-    userAsync.whenData((user) {
-      if (user != null) {
-        final metadata = user.userMetadata;
-        displayName = metadata?['full_name'] ?? metadata?['name'] ?? user.email?.split('@')[0] ?? "User";
-        photoUrl = metadata?['avatar_url'] ?? metadata?['picture'];
+    userAsync.whenData((userData) {
+      if (userData != null) {
+        // Ambil email
+        final email = userData['email'] as String? ?? "";
+
+        // Ambil metadata (disimpan sebagai Map di SessionService)
+        final metadata = userData['user_metadata'] as Map<String, dynamic>?;
+
+        if (metadata != null) {
+          displayName = metadata['full_name'] ?? metadata['name'] ?? email.split('@')[0];
+          photoUrl = metadata['avatar_url'] ?? metadata['picture'];
+        } else {
+          // Fallback jika metadata kosong
+          displayName = email.isNotEmpty ? email.split('@')[0] : "User";
+        }
       }
     });
 
@@ -102,7 +113,7 @@ class HomePage extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          context.push('/chatbot');
+          // context.push('/chatbot'); // Uncomment jika sudah ada
         },
         backgroundColor: const Color(0xFFD46E46),
         child: const Icon(Icons.chat_bubble_outline, color: Colors.white),

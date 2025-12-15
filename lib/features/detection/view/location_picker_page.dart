@@ -52,19 +52,27 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     }
     if (permission == LocationPermission.deniedForever) return;
 
-    Position position = await Geolocator.getCurrentPosition();
-    setState(() {
-      _myLocation = LatLng(position.latitude, position.longitude);
-      _center = _myLocation!;
-    });
+    try {
+      Position position = await Geolocator.getCurrentPosition();
+      if(mounted) {
+        setState(() {
+          _myLocation = LatLng(position.latitude, position.longitude);
+          _center = _myLocation!;
+        });
+        _mapController.move(_center, 15.0);
+      }
 
-    _mapController.move(_center, 15.0);
-
-    _positionStream = Geolocator.getPositionStream().listen((Position pos) {
-      setState(() {
-        _myLocation = LatLng(pos.latitude, pos.longitude);
+      // Listen
+      _positionStream = Geolocator.getPositionStream().listen((Position pos) {
+        if(mounted) {
+          setState(() {
+            _myLocation = LatLng(pos.latitude, pos.longitude);
+          });
+        }
       });
-    });
+    } catch (e) {
+      debugPrint("Error getting location: $e");
+    }
   }
 
   Future<void> _loadGeoJson() async {
@@ -79,6 +87,8 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
         if (geometry['type'] == 'LineString') {
           List<LatLng> points = [];
           for (var coord in geometry['coordinates']) {
+            // GeoJSON is usually [long, lat], but latlong2 expects [lat, long]
+            // Ensure this swap is correct for your specific GeoJSON file.
             points.add(LatLng(coord[1], coord[0]));
           }
           lines.add(Polyline(

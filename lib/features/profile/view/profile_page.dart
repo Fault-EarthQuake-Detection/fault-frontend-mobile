@@ -1,8 +1,9 @@
+// lib/features/profile/view/profile_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../sidebar/view/sidebar_drawer.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 
@@ -11,28 +12,29 @@ class ProfilePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. Ambil data user dari provider yang kita buat tadi
+    // 1. Ambil data user (sekarang berupa Map<String, dynamic>?)
     final userAsync = ref.watch(currentUserProvider);
 
-    // Default values jika data belum siap
+    // Default values
     String displayName = "GeoValid User";
     String email = "user@geovalid.com";
     String? photoUrl;
 
     // 2. Ekstrak data jika user ada
-    userAsync.whenData((user) {
-      if (user != null) {
-        email = user.email ?? "No Email";
+    userAsync.whenData((userData) {
+      if (userData != null) {
+        email = userData['email'] ?? "No Email";
 
-        // Ambil nama dari metadata (biasanya dari Google Login atau update profile)
-        // Cek 'full_name', kalau null cek 'name', kalau null pakai bagian depan email
-        final metadata = user.userMetadata;
-        displayName = metadata?['full_name'] ??
-            metadata?['name'] ??
-            email.split('@')[0];
+        // Ambil metadata dari Map
+        final metadata = userData['user_metadata'] as Map<String, dynamic>?;
 
-        // Ambil foto profil
-        photoUrl = metadata?['avatar_url'] ?? metadata?['picture'];
+        if (metadata != null) {
+          // Coba ambil dari berbagai kemungkinan key
+          displayName = metadata['full_name'] ?? metadata['name'] ?? metadata['username'] ?? email.split('@')[0];
+          photoUrl = metadata['avatar_url'] ?? metadata['picture'];
+        } else {
+          displayName = email.split('@')[0];
+        }
       }
     });
 
@@ -100,36 +102,14 @@ class ProfilePage extends ConsumerWidget {
                         child: CircleAvatar(
                           radius: 56,
                           backgroundColor: Colors.grey.shade300,
-                          // Logika Gambar: Jika ada URL -> Pakai NetworkImage, Jika tidak -> Icon
+                          // Logika Gambar
                           backgroundImage: (photoUrl != null) ? NetworkImage(photoUrl!) : null,
                           child: (photoUrl == null)
                               ? const Icon(Icons.person, size: 70, color: Colors.white70)
                               : null,
                         ),
                       ),
-
-                      // Tombol Ganti Foto
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: InkWell(
-                          onTap: () {
-                            // TODO: Implementasi Image Picker & Upload ke Supabase Storage
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Fitur ubah foto akan segera hadir!")),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD46E46),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                          ),
-                        ),
-                      ),
+                      // Tombol edit foto dihapus dari sini karena sudah ada di halaman Edit Profile
                     ],
                   ),
                   const SizedBox(height: 12),
