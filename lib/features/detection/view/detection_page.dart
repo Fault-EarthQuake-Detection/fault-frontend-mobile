@@ -1,12 +1,14 @@
 import 'dart:io';
-import 'package:camera/camera.dart'; // Package Kamera
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart'; // Untuk Galeri
-import 'package:permission_handler/permission_handler.dart'; // Untuk Izin
-import '../viewmodel/detection_viewmodel.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+final detectionImageProvider = StateProvider<File?>((ref) => null);
 
 class DetectionPage extends ConsumerStatefulWidget {
   const DetectionPage({super.key});
@@ -19,7 +21,6 @@ class _DetectionPageState extends ConsumerState<DetectionPage> with WidgetsBindi
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   bool _isPermissionDenied = false;
-
   FlashMode _currentFlashMode = FlashMode.off;
 
   @override
@@ -65,7 +66,6 @@ class _DetectionPageState extends ConsumerState<DetectionPage> with WidgetsBindi
       );
 
       await _cameraController!.initialize();
-
       await _cameraController!.setFlashMode(FlashMode.off);
 
       if (!mounted) return;
@@ -81,7 +81,6 @@ class _DetectionPageState extends ConsumerState<DetectionPage> with WidgetsBindi
 
   Future<void> _toggleFlash() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
-
     FlashMode newMode = _currentFlashMode == FlashMode.off ? FlashMode.always : FlashMode.off;
 
     try {
@@ -100,7 +99,8 @@ class _DetectionPageState extends ConsumerState<DetectionPage> with WidgetsBindi
 
     try {
       final XFile image = await _cameraController!.takePicture();
-      ref.read(detectionViewModelProvider.notifier).setImage(File(image.path));
+      // UPDATE: Simpan ke provider draft image
+      ref.read(detectionImageProvider.notifier).state = File(image.path);
     } catch (e) {
       debugPrint("Error taking picture: $e");
     }
@@ -123,7 +123,8 @@ class _DetectionPageState extends ConsumerState<DetectionPage> with WidgetsBindi
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
-      ref.read(detectionViewModelProvider.notifier).setImage(File(pickedFile.path));
+      // UPDATE: Simpan ke provider draft image
+      ref.read(detectionImageProvider.notifier).state = File(pickedFile.path);
     }
   }
 
@@ -150,8 +151,8 @@ class _DetectionPageState extends ConsumerState<DetectionPage> with WidgetsBindi
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final detectionState = ref.watch(detectionViewModelProvider);
-    final imageFile = detectionState.image;
+
+    final imageFile = ref.watch(detectionImageProvider);
     final isImageCaptured = imageFile != null;
 
     if (_isPermissionDenied && !isImageCaptured) {
@@ -187,7 +188,8 @@ class _DetectionPageState extends ConsumerState<DetectionPage> with WidgetsBindi
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
           onPressed: () {
             if (isImageCaptured) {
-              ref.read(detectionViewModelProvider.notifier).reset();
+              // UPDATE: Reset draft image
+              ref.read(detectionImageProvider.notifier).state = null;
               _initializeCamera();
             } else {
               context.go('/home');
@@ -296,7 +298,7 @@ class _DetectionPageState extends ConsumerState<DetectionPage> with WidgetsBindi
           Expanded(
             child: OutlinedButton.icon(
               onPressed: () {
-                ref.read(detectionViewModelProvider.notifier).reset();
+                ref.read(detectionImageProvider.notifier).state = null;
                 _initializeCamera();
               },
               icon: const Icon(Icons.refresh, color: Colors.white),
