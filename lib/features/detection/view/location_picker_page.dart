@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '../viewmodel/detection_viewmodel.dart';
+import 'detection_page.dart';
 
 class LocationPickerPage extends ConsumerStatefulWidget {
   const LocationPickerPage({super.key});
@@ -20,12 +21,15 @@ class LocationPickerPage extends ConsumerStatefulWidget {
 class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
   final MapController _mapController = MapController();
 
-  LatLng _center = const LatLng(-6.9175, 107.6191); // Default Bandung
+  bool _isMapReady = false;
+
+  LatLng _center = const LatLng(-6.2088, 106.8456);
 
   LatLng? _myLocation;
   StreamSubscription<Position>? _positionStream;
 
   bool _isSatellite = false;
+  bool _isLoadingLocation = true;
   List<Polyline> _faultLines = [];
 
   @override
@@ -43,28 +47,44 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
 
   Future<void> _initLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
+    if (!serviceEnabled) {
+      if (mounted) setState(() => _isLoadingLocation = false);
+      return;
+    }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
+      if (permission == LocationPermission.denied) {
+        if (mounted) setState(() => _isLoadingLocation = false);
+        return;
+      }
     }
-    if (permission == LocationPermission.deniedForever) return;
+
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) setState(() => _isLoadingLocation = false);
+      return;
+    }
 
     try {
-      Position position = await Geolocator.getCurrentPosition();
-      if(mounted) {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high
+      );
+
+      if (mounted) {
         setState(() {
           _myLocation = LatLng(position.latitude, position.longitude);
           _center = _myLocation!;
+          _isLoadingLocation = false;
         });
-        _mapController.move(_center, 15.0);
+
+        if (_isMapReady) {
+          _mapController.move(_center, 16.0);
+        }
       }
 
-      // Listen
       _positionStream = Geolocator.getPositionStream().listen((Position pos) {
-        if(mounted) {
+        if (mounted) {
           setState(() {
             _myLocation = LatLng(pos.latitude, pos.longitude);
           });
@@ -72,6 +92,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       });
     } catch (e) {
       debugPrint("Error getting location: $e");
+      if (mounted) setState(() => _isLoadingLocation = false);
     }
   }
 
@@ -87,14 +108,12 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
         if (geometry['type'] == 'LineString') {
           List<LatLng> points = [];
           for (var coord in geometry['coordinates']) {
-            // GeoJSON is usually [long, lat], but latlong2 expects [lat, long]
-            // Ensure this swap is correct for your specific GeoJSON file.
             points.add(LatLng(coord[1], coord[0]));
           }
           lines.add(Polyline(
             points: points,
-            color: Colors.red.withOpacity(0.7),
-            strokeWidth: 3.0,
+            color: Colors.red.withOpacity(0.6),
+            strokeWidth: 4.0,
           ));
         }
       }
@@ -112,7 +131,8 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
 
     ref.listen(detectionViewModelProvider, (previous, next) {
       if (next.result != null && !next.isLoading && next.error == null) {
-        context.go('/result');
+        ref.read(detectionImageProvider.notifier).state = null;
+        context.go('/detection-result');
       }
       if (next.error != null && !next.isLoading) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -123,17 +143,36 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Pilih Lokasi Sesar", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18)),
+        title: Text("Pilih Lokasi", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18)),
         backgroundColor: const Color(0xFFD46E46),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Stack(
+      body: _isLoadingLocation
+          ? const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: Color(0xFFD46E46)),
+            SizedBox(height: 16),
+            Text("Mencari lokasi GPS...", style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      )
+          : Stack(
         children: [
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
               initialCenter: _center,
-              initialZoom: 13.0,
+              initialZoom: 16.0,
+
+              onMapReady: () {
+                _isMapReady = true;
+                if (_myLocation != null) {
+                  _mapController.move(_myLocation!, 16.0);
+                }
+              },
+
               onPositionChanged: (position, hasGesture) {
                 if (position.center != null) {
                   _center = position.center!;
@@ -147,6 +186,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
                     : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.geovalid',
               ),
+
               PolylineLayer(polylines: _faultLines),
 
               if (_myLocation != null)
@@ -154,18 +194,15 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
                   markers: [
                     Marker(
                       point: _myLocation!,
-                      width: 24,
-                      height: 24,
+                      width: 20,
+                      height: 20,
                       child: Container(
                         decoration: BoxDecoration(
                           color: Colors.blue.withOpacity(0.8),
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 6,
-                            )
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4)
                           ],
                         ),
                       ),
@@ -177,8 +214,18 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
 
           const Center(
             child: Padding(
-              padding: EdgeInsets.only(bottom: 40.0),
-              child: Icon(Icons.location_on, size: 50, color: Color(0xFFD46E46)),
+              padding: EdgeInsets.only(bottom: 35.0),
+              child: Icon(
+                Icons.location_on,
+                size: 50,
+                color: Color(0xFFD46E46),
+              ),
+            ),
+          ),
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.only(top: 5),
+              child: Icon(Icons.circle, size: 6, color: Colors.black54),
             ),
           ),
 
@@ -187,13 +234,13 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
             child: InkWell(
               onTap: () => setState(() => _isSatellite = !_isSatellite),
               child: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)]
                 ),
-                child: Icon(_isSatellite ? Icons.map : Icons.satellite_alt, color: Colors.grey[800]),
+                child: Icon(_isSatellite ? Icons.map : Icons.satellite_alt, color: Colors.grey[800], size: 24),
               ),
             ),
           ),
@@ -202,15 +249,14 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
             bottom: 160,
             right: 16,
             child: FloatingActionButton(
-              mini: true,
+              mini: false,
               backgroundColor: Colors.white,
               onPressed: () {
                 if (_myLocation != null) {
-                  _mapController.move(_myLocation!, 15);
+                  _mapController.move(_myLocation!, 16);
+                  setState(() => _center = _myLocation!);
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Mencari lokasi GPS...")),
-                  );
+                  setState(() => _isLoadingLocation = true);
                   _initLocation();
                 }
               },
@@ -223,46 +269,58 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
             child: Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.95),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.info_outline, color: Color(0xFFD46E46), size: 20),
+                      const Icon(Icons.touch_app, color: Color(0xFFD46E46), size: 18),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          "Geser peta agar marker merah tepat berada di lokasi temuan.",
-                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
-                        ),
+                      Text(
+                        "Geser peta untuk menyesuaikan lokasi",
+                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
                 ),
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 54,
                   child: ElevatedButton(
                     onPressed: detectionState.isLoading
                         ? null
                         : () {
-                      ref.read(detectionViewModelProvider.notifier)
-                          .setLocation(_center.latitude, _center.longitude);
+                      final imageFile = ref.read(detectionImageProvider);
 
-                      ref.read(detectionViewModelProvider.notifier).runAnalysis();
+                      if (imageFile == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Gambar hilang. Silakan foto ulang."))
+                        );
+                        context.pop();
+                        return;
+                      }
+
+                      ref.read(detectionViewModelProvider.notifier).processDetection(
+                        imageFile: imageFile,
+                        latitude: _center.latitude,
+                        longitude: _center.longitude,
+                        address: "",
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFD46E46),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     child: detectionState.isLoading
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : Text("Konfirmasi & Analisis", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                        : Text("Gunakan Lokasi Ini", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],

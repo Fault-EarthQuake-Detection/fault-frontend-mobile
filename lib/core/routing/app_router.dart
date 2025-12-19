@@ -21,7 +21,6 @@ class AppRouter {
     initialLocation: '/splash',
 
     redirect: (context, state) {
-      // Synchronous check using cached token loaded during main()
       final isLoggedIn = SessionService.hasCachedToken();
       final path = state.uri.toString();
 
@@ -42,9 +41,9 @@ class AppRouter {
 
       GoRoute(path: '/detection', builder: (_, __) => const DetectionPage()),
       GoRoute(path: '/location-picker', builder: (_, __) => const LocationPickerPage()),
-      GoRoute(path: '/result', builder: (_, __) => const DetectionResultPage()),
+      GoRoute(path: '/detection-result', builder: (_, __) => const DetectionResultPage()),
 
-      GoRoute(path: '/maps', builder: (_, __) => const MapsPage()),
+      // GoRoute(path: '/maps', builder: (_, __) => const MapsPage()),
 
       GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
       GoRoute(path: '/edit-profile', builder: (_, __) => const EditProfilePage()),

@@ -21,7 +21,7 @@ class _MainNavigationState extends State<MainNavigation> {
   final List<Widget> _pages = [
     const HomePage(),
     const DetectionPage(),
-    const MapsPage(),
+    const Column(),
     const ProfilePage(),
   ];
 

@@ -1,113 +1,184 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/services/supabase_service.dart';
-import '../../../core/services/session_service.dart';
 import '../../../core/constants/app_constants.dart';
-import 'detection_response.dart';
+import '../../../core/services/session_service.dart';
+import '../../../core/services/supabase_service.dart';
+import 'package:http_parser/http_parser.dart';
 
 class DetectionRepository {
   final SupabaseClient _supabase = SupabaseService().client;
 
-  Future<DetectionResponse> analyze({required File image, required double lat, required double lng}) async {
+  // 1. Upload Gambar Asli ke Supabase
+  Future<String> uploadImageToStorage(File file, String folder) async {
     try {
-      final isPng = image.path.toLowerCase().endsWith('.png');
-      final mediaType = isPng ? MediaType('image', 'png') : MediaType('image', 'jpeg');
+      final fileName = "${DateTime.now().millisecondsSinceEpoch}.jpg";
+      final path = "$folder/$fileName";
 
-      var requestPredict = http.MultipartRequest('POST', Uri.parse('${AppConstants.aiApiUrl}/predict'));
-      requestPredict.files.add(await http.MultipartFile.fromPath(
-        'file',
-        image.path,
-        contentType: mediaType,
-      ));
+      // Pastikan nama bucket sesuai dengan settingan Supabase kamu ('detection-image' atau 'detection-images')
+      await _supabase.storage.from('detection-image').upload(path, file);
 
-      var requestLocation = http.MultipartRequest('POST', Uri.parse('${AppConstants.aiApiUrl}/cek_lokasi'));
-      requestLocation.fields['latitude'] = lat.toString();
-      requestLocation.fields['longitude'] = lng.toString();
-
-      final responses = await Future.wait([
-        requestPredict.send(),
-        requestLocation.send(),
-      ]);
-
-      final respPredict = await http.Response.fromStream(responses[0]);
-      final respLocation = await http.Response.fromStream(responses[1]);
-
-      if (respPredict.statusCode != 200) {
-        try {
-          final errJson = jsonDecode(respPredict.body);
-          throw errJson['detail'] ?? respPredict.body;
-        } catch (_) {
-          throw "AI Error: ${respPredict.body}";
-        }
-      }
-      if (respLocation.statusCode != 200) throw "Location Error: ${respLocation.body}";
-
-      return DetectionResponse(
-        predictData: jsonDecode(respPredict.body),
-        locationData: jsonDecode(respLocation.body),
-      );
+      return _supabase.storage.from('detection-image').getPublicUrl(path);
     } catch (e) {
-      throw Exception("Gagal menganalisis: $e");
+      throw "Gagal upload gambar ke storage: $e";
     }
   }
 
-  Future<String> uploadDetectionImage(File file) async {
-    final user = await SessionService.getUser();
-    if (user == null) throw "User belum login";
-    final userId = user['id'];
+  // 2. Upload Base64 (Overlay) ke Supabase
+  Future<String> uploadBase64ToStorage(String base64String, String folder) async {
+    try {
+      final cleanBase64 = base64String.replaceAll(RegExp(r'data:image\/[^;]+;base64,'), '');
+      Uint8List bytes = base64Decode(cleanBase64);
 
-    final fileExt = file.path.split('.').last;
-    final fileName = '$userId-${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final fileName = "overlay_${DateTime.now().millisecondsSinceEpoch}.jpg";
+      final path = "$folder/$fileName";
 
-    await _supabase.storage.from('detection-image').upload(fileName, file);
-    return _supabase.storage.from('detection-image').getPublicUrl(fileName);
+      await _supabase.storage.from('detection-image').uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true)
+      );
+
+      return _supabase.storage.from('detection-image').getPublicUrl(path);
+    } catch (e) {
+      print("Warning: Gagal upload overlay: $e");
+      return "";
+    }
   }
 
+  // 3. KIRIM KE AI VISUAL
+  Future<Map<String, dynamic>> analyzeImage(File imageFile) async {
+    try {
+      final url = Uri.parse("${AppConstants.aiApiUrl}/predict");
+
+      var request = http.MultipartRequest('POST', url);
+
+      // --- TENTUKAN CONTENT-TYPE ---
+      final String extension = imageFile.path.split('.').last.toLowerCase();
+      MediaType contentType;
+
+      if (extension == 'png') {
+        contentType = MediaType('image', 'png');
+      } else {
+        contentType = MediaType('image', 'jpeg');
+      }
+
+      var multipartFile = await http.MultipartFile.fromPath(
+        'file',
+        imageFile.path,
+        contentType: contentType,
+      );
+
+      request.files.add(multipartFile);
+
+      print("Mengirim gambar ke AI: ${imageFile.path} sebagai $contentType");
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode != 200) {
+        throw "AI Visual Error (${response.statusCode}): ${response.body}";
+      }
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      print("Error analyzing image: $e");
+      rethrow;
+    }
+  }
+
+  // 4. Cek Resiko Lokasi (/cek_lokasi)
+  Future<Map<String, dynamic>> checkLocationRisk(double lat, double long) async {
+    try {
+      final url = Uri.parse("${AppConstants.aiApiUrl}/cek_lokasi");
+
+      var request = http.MultipartRequest('POST', url);
+      request.fields['latitude'] = lat.toString();
+      request.fields['longitude'] = long.toString();
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        print("Gagal cek lokasi: ${response.body}");
+        return {
+          "status": "Info Lokasi Tidak Tersedia",
+          "nama_patahan": "-",
+          "jarak_km": 0.0
+        };
+      }
+    } catch (e) {
+      print("Error checking location: $e");
+      return {
+        "status": "Offline",
+        "nama_patahan": "-",
+        "jarak_km": 0.0
+      };
+    }
+  }
+
+  // 5. Simpan Hasil ke Backend (DENGAN VALIDASI TOKEN)
   Future<void> saveDetectionResult({
     required double lat,
-    required double lng,
-    required String imageUrl,
-    required DetectionResponse data,
+    required double long,
+    required String originalUrl,
+    required String overlayUrl,
+    required String faultType,
+    required String description,
+    required String status,
+    required String locationStatus,
+    required String faultName,
+    required double faultDistance,
   }) async {
     final token = await SessionService.getAccessToken();
-    if (token == null) throw "Sesi habis, silakan login ulang";
 
-    final body = jsonEncode({
-      'latitude': lat,
-      'longitude': lng,
-      'imageUrl': imageUrl,
-      'originalImageUrl': imageUrl,
-      'overlayImageUrl': data.overlayBase64 ?? "",
-      'detectionResult': data.visualDescription,
-      'description': jsonEncode({
-        'visual_statement': data.statement,
-        'visual_status': data.visualStatus,
-        'location_status': data.locationStatus,
-        'fault_name': data.faultName,
-        'fault_distance': data.distanceKm,
-        'analysis_timestamp': DateTime.now().toIso8601String(),
-      })
+    if (token == null || token.isEmpty) {
+      throw "Sesi habis. Silakan Logout dan Login kembali.";
+    }
+
+    final url = Uri.parse("${AppConstants.apiBaseUrl}/detections");
+
+    final fullDescriptionJson = jsonEncode({
+      "visual_description": description,
+      "visual_status": status,
+      "location_status": locationStatus,
+      "fault_name": faultName,
+      "fault_distance": faultDistance,
+      "timestamp": DateTime.now().toIso8601String(),
     });
 
-    final url = Uri.parse('${AppConstants.apiBaseUrl}/detections');
+    final bodyData = {
+      "latitude": lat,
+      "longitude": long,
+      "originalImageUrl": originalUrl,
+      "overlayImageUrl": overlayUrl,
+      "detectionResult": faultType,
+      "statusLevel": status,
+      "description": fullDescriptionJson,
+      "address": "$faultName (${faultDistance.toStringAsFixed(1)} km)",
+    };
 
-    print("Mengirim data ke: $url");
-    print("Payload: $body");
+    print("Mengirim Data ke Backend...");
 
     final response = await http.post(
       url,
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
       },
-      body: body,
+      body: jsonEncode(bodyData),
     );
 
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw "Gagal menyimpan ke server: ${response.body}";
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw "Akses ditolak: Token tidak valid atau kadaluarsa. Silakan Login ulang.";
+    }
+
+    if (response.statusCode >= 300) {
+      throw jsonDecode(response.body)['error'] ?? "Gagal menyimpan data (Error ${response.statusCode})";
     }
   }
 }

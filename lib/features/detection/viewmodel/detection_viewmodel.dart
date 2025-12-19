@@ -1,101 +1,125 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import '../data/detection_repository.dart';
-import '../data/detection_response.dart';
 
 class DetectionState {
-  final File? image;
-  final double? lat;
-  final double? lng;
   final bool isLoading;
-  final DetectionResponse? result;
   final String? error;
-  final bool isSaved;
+  final Map<String, dynamic>? result;
 
   DetectionState({
-    this.image,
-    this.lat,
-    this.lng,
     this.isLoading = false,
-    this.result,
     this.error,
-    this.isSaved = false,
+    this.result
   });
-
-  DetectionState copyWith({
-    File? image, double? lat, double? lng,
-    bool? isLoading, DetectionResponse? result, String? error, bool? isSaved,
-  }) {
-    return DetectionState(
-      image: image ?? this.image,
-      lat: lat ?? this.lat,
-      lng: lng ?? this.lng,
-      isLoading: isLoading ?? this.isLoading,
-      result: result ?? this.result,
-      error: error,
-      isSaved: isSaved ?? this.isSaved,
-    );
-  }
 }
 
 class DetectionViewModel extends StateNotifier<DetectionState> {
-  final DetectionRepository _repository;
+  final DetectionRepository _repo;
 
-  DetectionViewModel(this._repository) : super(DetectionState());
+  DetectionViewModel(this._repo) : super(DetectionState());
 
-  void setImage(File image) {
-    state = state.copyWith(image: image, isSaved: false, result: null);
-  }
-
-  void setLocation(double lat, double lng) {
-    state = state.copyWith(lat: lat, lng: lng);
-  }
-
-  void reset() {
-    state = DetectionState();
-  }
-
-  Future<void> runAnalysis() async {
-    if (state.image == null || state.lat == null || state.lng == null) {
-      state = state.copyWith(error: "Data gambar atau lokasi belum lengkap");
-      return;
-    }
-
-    state = state.copyWith(isLoading: true, error: null);
-
+  Future<void> processDetection({
+    required File imageFile,
+    required double latitude,
+    required double longitude,
+    String? address,
+  }) async {
+    state = DetectionState(isLoading: true);
     try {
-      final response = await _repository.analyze(
-        image: state.image!,
-        lat: state.lat!,
-        lng: state.lng!,
-      );
-      state = state.copyWith(result: response, isLoading: false);
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-    }
-  }
+      final results = await Future.wait([
+        _repo.analyzeImage(imageFile),
+        _repo.checkLocationRisk(latitude, longitude),
+        _repo.uploadImageToStorage(imageFile, "originals")
+      ]);
 
-  Future<void> saveDetection() async {
-    if (state.result == null || state.image == null) return;
+      final aiResult = results[0] as Map<String, dynamic>;
+      final locResult = results[1] as Map<String, dynamic>;
+      final originalUrl = results[2] as String;
 
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final imageUrl = await _repository.uploadDetectionImage(state.image!);
-      await _repository.saveDetectionResult(
-        lat: state.lat!,
-        lng: state.lng!,
-        imageUrl: imageUrl,
-        data: state.result!,
+
+      final faultAnalysis = aiResult['fault_analysis'] as Map<String, dynamic>? ?? {};
+      final imagesBase64 = aiResult['images_base64'] as Map<String, dynamic>? ?? {};
+
+      final visualStatus = faultAnalysis['status_level'] ?? "INFO";
+      final faultType = faultAnalysis['deskripsi_singkat'] ?? "Tidak Teridentifikasi";
+      final visualDesc = faultAnalysis['penjelasan_lengkap'] ?? (aiResult['statement'] ?? "-");
+
+      final rawBase64 = imagesBase64['overlay'];
+
+      final locationStatusFull = locResult['status'] as String? ?? "Zona Tidak Diketahui";
+
+      String locationStatusShort = "AMAN";
+      if (locationStatusFull.contains("ZONA PERINGATAN")) {
+        locationStatusShort = "ZONA PERINGATAN";
+      } else if (locationStatusFull.contains("BAHAYA")) {
+        locationStatusShort = "ZONA BAHAYA";
+      }
+
+      final faultName = locResult['nama_patahan'] ?? "-";
+      final distanceKm = double.tryParse(locResult['jarak_km'].toString()) ?? 0.0;
+
+      String finalStatus = visualStatus;
+
+      bool isLocDanger = locationStatusShort.contains("BAHAYA") ||
+          locationStatusShort.contains("PERINGATAN");
+
+      if (isLocDanger) {
+        if (visualStatus == "AMAN" || visualStatus == "INFO") {
+          finalStatus = "WASPADA (LOKASI)";
+        } else {
+          finalStatus = "BAHAYA TINGGI";
+        }
+      }
+
+      String overlayUrl = "";
+      if (rawBase64 != null && rawBase64.toString().isNotEmpty) {
+        overlayUrl = await _repo.uploadBase64ToStorage(rawBase64, "overlays");
+      }
+
+      await _repo.saveDetectionResult(
+        lat: latitude,
+        long: longitude,
+        originalUrl: originalUrl,
+        overlayUrl: overlayUrl,
+        faultType: faultType,
+        description: visualDesc,
+        status: finalStatus,
+        locationStatus: locationStatusShort,
+        faultName: faultName,
+        faultDistance: distanceKm,
       );
-      state = state.copyWith(isSaved: true, isLoading: false);
+
+      state = DetectionState(
+          isLoading: false,
+          result: {
+            "status": finalStatus,
+            "visualStatus": visualStatus,
+            "faultType": faultType,
+            "description": visualDesc,
+            "originalUrl": originalUrl,
+            "overlayUrl": overlayUrl,
+            "locationStatus": locationStatusShort,
+            "faultName": faultName,
+            "distanceKm": distanceKm,
+          }
+      );
+
     } catch (e) {
-      state = state.copyWith(error: "Gagal menyimpan: $e", isLoading: false);
+      print("Error Processing: $e");
+      state = DetectionState(isLoading: false, error: e.toString());
     }
   }
 }
 
-final detectionRepositoryProvider = Provider((ref) => DetectionRepository());
+// Providers
+final detectionRepositoryProvider = Provider<DetectionRepository>((ref) {
+  return DetectionRepository();
+});
+
 final detectionViewModelProvider = StateNotifierProvider<DetectionViewModel, DetectionState>((ref) {
-  return DetectionViewModel(ref.read(detectionRepositoryProvider));
+  final repo = ref.read(detectionRepositoryProvider);
+  return DetectionViewModel(repo);
 });
