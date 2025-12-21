@@ -136,6 +136,14 @@ class ProfilePage extends ConsumerWidget {
                     onTap: () => context.push('/edit-profile'),
                   ),
                   const SizedBox(height: 12),
+
+                  _buildProfileMenuItem(
+                    icon: Icons.feedback_outlined,
+                    title: "Kirim Masukan",
+                    onTap: () => context.push('/feedback'),
+                  ),
+                  const SizedBox(height: 12),
+
                   _buildProfileMenuItem(
                     icon: Icons.info_outline,
                     title: "Tentang Aplikasi",
@@ -185,9 +193,7 @@ class ProfilePage extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-
               await ref.read(authViewModelProvider.notifier).logout();
-
               if (context.mounted) {
                 context.go('/login');
               }
