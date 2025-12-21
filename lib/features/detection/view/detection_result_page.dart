@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,12 +6,52 @@ import 'package:go_router/go_router.dart';
 import '../viewmodel/detection_viewmodel.dart';
 
 class DetectionResultPage extends ConsumerWidget {
-  const DetectionResultPage({super.key});
+  // Terima data opsional dari history
+  final Map<String, dynamic>? historyData;
+
+  const DetectionResultPage({super.key, this.historyData});
+
+  // Fungsi Helper untuk memetakan data DB (History) ke format UI Result
+  Map<String, dynamic> _mapHistoryToUi(Map<String, dynamic> data) {
+    String rawDesc = data['description'] ?? "";
+    Map<String, dynamic> parsedDesc = {};
+    String cleanDesc = "Tidak ada deskripsi.";
+
+    try {
+      if (rawDesc.trim().startsWith('{')) {
+        parsedDesc = jsonDecode(rawDesc);
+        cleanDesc = parsedDesc['visual_description'] ??
+            parsedDesc['deskripsi_singkat'] ??
+            parsedDesc['visual_statement'] ?? rawDesc;
+      } else {
+        cleanDesc = rawDesc;
+      }
+    } catch (e) {
+      cleanDesc = rawDesc;
+    }
+
+    return {
+      'status': data['statusLevel'] ?? data['status_level'] ?? "INFO",
+      'faultType': data['faultType'] ?? data['fault_type'] ?? "Tidak Teridentifikasi",
+      'description': cleanDesc,
+      'locationStatus': parsedDesc['location_status'] ?? "-",
+      'faultName': parsedDesc['fault_name'] ?? "-",
+      'distanceKm': double.tryParse(parsedDesc['fault_distance']?.toString() ?? "0") ?? 0.0,
+      'overlayUrl': data['overlayImageUrl'] ?? data['overlay_image_url'] ?? "",
+      'originalUrl': data['originalImageUrl'] ?? data['original_image_url'] ?? "",
+    };
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detectionState = ref.watch(detectionViewModelProvider);
-    final result = detectionState.result;
+    Map<String, dynamic>? result;
+
+    if (historyData != null) {
+      result = _mapHistoryToUi(historyData!);
+    } else {
+      result = detectionState.result;
+    }
 
     if (result == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => context.go('/home'));
@@ -27,7 +68,9 @@ class DetectionResultPage extends ConsumerWidget {
 
     final String overlayUrl = result['overlayUrl'] ?? "";
     final String originalUrl = result['originalUrl'] ?? "";
-    final String displayImageUrl = (overlayUrl.isNotEmpty) ? overlayUrl : originalUrl;
+    final String displayImageUrl = (overlayUrl.isNotEmpty && overlayUrl != "null")
+        ? overlayUrl
+        : originalUrl;
 
     Color statusColor = Colors.green;
     if (status.toUpperCase().contains("BAHAYA") || status.toUpperCase().contains("TINGGI")) {
@@ -43,7 +86,13 @@ class DetectionResultPage extends ConsumerWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-          onPressed: () => context.go('/home'),
+          onPressed: () {
+            if (historyData != null) {
+              context.pop(); // Back biasa kalau dari History
+            } else {
+              context.go('/home'); // Reset ke home kalau deteksi baru
+            }
+          },
         ),
         title: Text(
           "Hasil Analisis",
@@ -56,6 +105,7 @@ class DetectionResultPage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- KARTU GAMBAR & STATUS ---
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -119,6 +169,7 @@ class DetectionResultPage extends ConsumerWidget {
 
             const SizedBox(height: 24),
 
+            // --- DETAIL ANALISIS ---
             Text("Detail Analisis", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: const Color(0xFF5D534A))),
             const SizedBox(height: 12),
 
@@ -138,30 +189,34 @@ class DetectionResultPage extends ConsumerWidget {
 
             const SizedBox(height: 32),
 
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  context.go('/home');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                ),
-                icon: const Icon(Icons.check_circle_outline),
-                label: Text(
-                    "Selesai & Kembali",
-                    style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)
+            // --- TOMBOL SELESAI (HANYA MUNCUL JIKA BUKAN DARI HISTORY) ---
+            if (historyData == null)
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    context.go('/home');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: Text(
+                      "Selesai & Kembali",
+                      style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)
+                  ),
                 ),
               ),
-            ),
 
             const SizedBox(height: 12),
             Center(
               child: Text(
-                "Data hasil analisis telah tersimpan otomatis.",
+                historyData != null
+                    ? "Menampilkan arsip riwayat deteksi."
+                    : "Data hasil analisis telah tersimpan otomatis.",
                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
               ),
             )

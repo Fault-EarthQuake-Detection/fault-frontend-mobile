@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '../../sidebar/view/sidebar_drawer.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
+import '../../sidebar/viewmodel/history_viewmodel.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -79,6 +80,7 @@ class ProfilePage extends ConsumerWidget {
               ),
             ),
 
+            SizedBox(height: 30,),
             Transform.translate(
               offset: const Offset(0, -70),
               child: Column(
@@ -193,7 +195,13 @@ class ProfilePage extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
+
+              // 1. Logout Auth
               await ref.read(authViewModelProvider.notifier).logout();
+
+              // 2. [PENTING] Reset Riwayat Deteksi agar tidak nyangkut ke user berikutnya
+              ref.invalidate(historyViewModelProvider);
+
               if (context.mounted) {
                 context.go('/login');
               }
