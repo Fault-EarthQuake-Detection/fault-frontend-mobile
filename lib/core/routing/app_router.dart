@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+// ... import lainnya tetap sama ...
 import '../../features/auth/view/splash_page.dart';
 import '../../features/auth/view/launch_page.dart';
 import '../../features/auth/view/login_page.dart';
@@ -42,7 +43,17 @@ class AppRouter {
 
       GoRoute(path: '/detection', builder: (_, __) => const DetectionPage()),
       GoRoute(path: '/location-picker', builder: (_, __) => const LocationPickerPage()),
-      GoRoute(path: '/detection-result', builder: (_, __) => const DetectionResultPage()),
+
+      // --- UPDATE DI SINI ---
+      GoRoute(
+        path: '/detection-result',
+        builder: (context, state) {
+          // Tangkap data history dari parameter 'extra'
+          final historyData = state.extra as Map<String, dynamic>?;
+          return DetectionResultPage(historyData: historyData);
+        },
+      ),
+      // ----------------------
 
       GoRoute(path: '/maps', builder: (_, __) => const MapsPage()),
       GoRoute(path: '/feedback', builder: (_, __) => const FeedbackPage()),
