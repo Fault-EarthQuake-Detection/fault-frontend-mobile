@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:permission_handler/permission_handler.dart'; // Import ini
+import 'package:permission_handler/permission_handler.dart';
 
 import 'home_page.dart';
 import '../../detection/view/detection_page.dart';
@@ -21,7 +20,7 @@ class _MainNavigationState extends State<MainNavigation> {
   final List<Widget> _pages = [
     const HomePage(),
     const DetectionPage(),
-    const Column(),
+    const MapsPage(),
     const ProfilePage(),
   ];
 
