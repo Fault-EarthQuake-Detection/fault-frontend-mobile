@@ -1,11 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import '../data/history_repository.dart';
 
-// State Class
 class HistoryState {
-  final List<dynamic> fullHistory;    // Master Data (Semua data dari API)
-  final List<dynamic> displayHistory; // Data untuk UI (Hasil Search/Filter)
+  final List<dynamic> fullHistory;
+  final List<dynamic> displayHistory;
   final bool isLoading;
 
   HistoryState({
@@ -14,7 +12,6 @@ class HistoryState {
     this.isLoading = true,
   });
 
-  // CopyWith helper untuk update state parsial
   HistoryState copyWith({
     List<dynamic>? fullHistory,
     List<dynamic>? displayHistory,
@@ -28,7 +25,6 @@ class HistoryState {
   }
 }
 
-// ViewModel Class
 class HistoryViewModel extends StateNotifier<HistoryState> {
   final HistoryRepository _repo;
 
@@ -36,39 +32,32 @@ class HistoryViewModel extends StateNotifier<HistoryState> {
     loadMyHistory();
   }
 
-  // Load data awal
-  Future<void> loadMyHistory() async {
-    state = state.copyWith(isLoading: true);
+  Future<void> loadMyHistory({bool forceRefresh = false}) async {
+    // Loading State Logic
+    if (forceRefresh || state.fullHistory.isEmpty) {
+      state = state.copyWith(isLoading: true);
+    }
+
     try {
+      // Data yang diterima dari repo SUDAH di-filter dan SUDAH di-sort
+      // Jadi ViewModel tidak perlu kerja berat lagi
       final data = await _repo.getUserHistory();
 
-      // Sort: Terbaru di atas
-      data.sort((a, b) {
-        final dateA = DateTime.tryParse(a['createdAt'] ?? a['created_at'] ?? '') ?? DateTime(2000);
-        final dateB = DateTime.tryParse(b['createdAt'] ?? b['created_at'] ?? '') ?? DateTime(2000);
-        return dateB.compareTo(dateA);
-      });
-
-      // Simpan ke KEDUA list (Master & Display)
       state = state.copyWith(
           fullHistory: data,
           displayHistory: data,
           isLoading: false
       );
     } catch (e) {
-      print("ViewModel Error: $e");
-      state = state.copyWith(
-          fullHistory: [],
-          displayHistory: [],
-          isLoading: false
-      );
+      state = state.copyWith(isLoading: false);
+      print("History Error: $e");
     }
   }
 
-  // Fitur Search Lokal (Fix: Filter dari fullHistory)
   void search(String query) {
+    // Logic search tetap di sini (Main Thread) karena biasanya cepat untuk < 100 item.
+    // Kalau mau lebih cepat lagi, bisa pindah ke compute, tapi untuk history user biasanya belum perlu.
     if (query.trim().isEmpty) {
-      // Jika kosong, kembalikan ke list penuh
       state = state.copyWith(displayHistory: state.fullHistory);
       return;
     }
@@ -77,22 +66,15 @@ class HistoryViewModel extends StateNotifier<HistoryState> {
       final title = (item['faultType'] ?? item['fault_type'] ?? "").toString().toLowerCase();
       final status = (item['statusLevel'] ?? item['status_level'] ?? "").toString().toLowerCase();
       final q = query.toLowerCase();
-
       return title.contains(q) || status.contains(q);
     }).toList();
 
-    // Update HANYA displayHistory
     state = state.copyWith(displayHistory: filtered);
   }
 }
 
-// --- PROVIDERS ---
+final historyRepositoryProvider = Provider((ref) => HistoryRepository());
 
-final historyRepositoryProvider = Provider<HistoryRepository>((ref) {
-  return HistoryRepository();
-});
-
-// [FIX 1] Gunakan .autoDispose agar state hancur saat Logout/Ganti Halaman
 final historyViewModelProvider = StateNotifierProvider<HistoryViewModel, HistoryState>((ref) {
   final repo = ref.read(historyRepositoryProvider);
   return HistoryViewModel(repo);

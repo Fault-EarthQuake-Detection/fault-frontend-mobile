@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:latlong2/latlong.dart';
 import '../data/maps_repository.dart';
 
@@ -43,22 +42,16 @@ class MapsViewModel extends StateNotifier<MapsState> {
       final geoJsonString = results[0] as String;
       final rawHistoryData = results[1] as List<dynamic>;
 
-      print("🔍 TOTAL DATA DARI API: ${rawHistoryData.length}");
-      if (rawHistoryData.isNotEmpty) {
-        print("🔍 CONTOH DATA PERTAMA: ${rawHistoryData.first}");
-      }
-
+      // Filter hanya yang Valid
       final validatedHistory = rawHistoryData.where((item) {
         if (item is Map<String, dynamic>) {
           final isValid = item['isValidated'] ?? item['is_validated'];
-
           return isValid == true;
         }
         return false;
       }).toList();
 
-      print("✅ DATA TERVALIDASI YANG AKAN DITAMPILKAN: ${validatedHistory.length}");
-
+      // Parse GeoJSON Patahan
       final geoJson = jsonDecode(geoJsonString);
       List<List<LatLng>> lines = [];
       if (geoJson['features'] != null) {
@@ -76,15 +69,13 @@ class MapsViewModel extends StateNotifier<MapsState> {
         isLoading: false,
       );
     } catch (e) {
-      print("❌ MapsViewModel Error: $e");
+      print("MapsViewModel Error: $e");
       state = state.copyWith(isLoading: false);
     }
   }
 }
 
-final mapsRepositoryProvider = Provider<MapsRepository>((ref) => MapsRepository());
-
+final mapsRepositoryProvider = Provider((ref) => MapsRepository());
 final mapsViewModelProvider = StateNotifierProvider<MapsViewModel, MapsState>((ref) {
-  final repo = ref.read(mapsRepositoryProvider);
-  return MapsViewModel(repo);
+  return MapsViewModel(ref.read(mapsRepositoryProvider));
 });
