@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../l10n/app_localizations.dart';
 
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      // Background otomatis
       appBar: AppBar(
-        backgroundColor: const Color(0xFFD46E46),
-        elevation: 0,
+        backgroundColor: AppColors.primary,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
           onPressed: () => context.pop(),
         ),
-        title: Text(
-          "Tentang Aplikasi",
-          style: GoogleFonts.poppins(
-            fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white,
-          ),
-        ),
+        title: Text(l10n.aboutApp, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -30,68 +30,52 @@ class AboutPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 16),
-            Image.asset(
-              'assets/Logo.png',
-              height: 100,
-              fit: BoxFit.contain,
-            ),
+            Image.asset('assets/Logo.png', height: 100, fit: BoxFit.contain),
             const SizedBox(height: 16),
-            Text(
-              "GeoValid",
-              style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFFD46E46),
-              ),
-            ),
-            Text(
-              "Versi 1.0.0 (Beta)",
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
-            ),
+            Text("GeoValid", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary)),
+            Text("Versi 1.0.0 (Beta)", style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey)),
             const SizedBox(height: 32),
+
+            // Kotak Deskripsi
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                // Warna Card Adaptif
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+                ],
               ),
               child: Text(
-                "GeoValid adalah aplikasi edukasi dan validasi geologi interaktif yang membantu pengguna mengidentifikasi jalur sesar dan fitur geologi lainnya menggunakan teknologi AI. Aplikasi ini dirancang untuk mahasiswa, peneliti, dan masyarakat umum yang peduli terhadap mitigasi bencana.",
+                l10n.aboutDesc,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.grey.shade800,
-                  height: 1.6,
+                    fontSize: 14,
+                    height: 1.6,
+                    color: theme.textTheme.bodyMedium?.color
                 ),
               ),
             ),
+
             const SizedBox(height: 32),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "Tim Pengembang",
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF3E2723),
-                ),
+                "Tim Pengembang", // Boleh ditambah ke l10n: "Dev Team"
+                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: theme.textTheme.bodyLarge?.color),
               ),
             ),
             const SizedBox(height: 8),
-            _buildDeveloperItem("Nama Mahasiswa 1", "Role (misal: Mobile Dev)"),
-            _buildDeveloperItem("Nama Mahasiswa 2", "Role (misal: AI Engineer)"),
+            _buildDeveloperItem("Nama Mahasiswa 1", "Role (Mobile Dev)", theme),
+            _buildDeveloperItem("Nama Mahasiswa 2", "Role (AI Engineer)", theme),
+
             const SizedBox(height: 48),
             Text(
               "© 2025 GeoValid Team.\nAll Rights Reserved.",
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: Colors.grey.shade500,
-              ),
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 24),
           ],
@@ -100,24 +84,18 @@ class AboutPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDeveloperItem(String name, String role) {
+  Widget _buildDeveloperItem(String name, String role, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         children: [
-          const Icon(Icons.person_outline, size: 20, color: Color(0xFFD46E46)),
+          const Icon(Icons.person_outline, size: 20, color: AppColors.primary),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                name,
-                style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
-              ),
-              Text(
-                role,
-                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
-              ),
+              Text(name, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(role, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
             ],
           ),
         ],

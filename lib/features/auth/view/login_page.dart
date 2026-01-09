@@ -1,10 +1,11 @@
-// lib/features/auth/view/login_page.dart
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../core/constants/app_colors.dart';
+import '../../../l10n/app_localizations.dart';
 import '../viewmodel/auth_viewmodel.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -20,9 +21,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
 
-  final Color _earthyColor = const Color(0xFF8D8D8D);
-  final Color _labelColor = const Color(0xFF5D534A);
-
   @override
   void dispose() {
     _usernameController.dispose();
@@ -34,6 +32,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final authState = ref.watch(authViewModelProvider);
+    final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     ref.listen(authViewModelProvider, (previous, next) {
       if (next.isSuccess) {
@@ -46,7 +46,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     });
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -63,23 +62,34 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   Text(
                     "GeoValid",
-                    style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF3E2723)),
+                    style: GoogleFonts.poppins(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge?.color
+                    ),
                   ),
                   const SizedBox(height: 40),
 
-                  _buildInputLabel("Username"),
+                  _buildInputLabel(l10n.username, isDark),
                   const SizedBox(height: 6),
-                  _buildTextField(hint: "Username", controller: _usernameController, isEmail: false),
+                  _buildTextField(
+                      hint: l10n.username,
+                      controller: _usernameController,
+                      l10n: l10n,
+                      isDark: isDark
+                  ),
 
                   const SizedBox(height: 16),
 
-                  _buildInputLabel("Password"),
+                  _buildInputLabel(l10n.password, isDark),
                   const SizedBox(height: 6),
                   _buildPasswordField(
-                    hint: "********",
-                    controller: _passwordController,
-                    isVisible: _isPasswordVisible,
-                    onToggle: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                      hint: "********",
+                      controller: _passwordController,
+                      isVisible: _isPasswordVisible,
+                      onToggle: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                      l10n: l10n,
+                      isDark: isDark
                   ),
 
                   const SizedBox(height: 40),
@@ -99,19 +109,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD46E46),
+                        backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         elevation: 3,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
                       child: authState.isLoading
                           ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text("Masuk", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                          : Text(l10n.login, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
 
                   const SizedBox(height: 32),
-                  Text("Atau masuk dengan", style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600)),
+                  Text(l10n.orLoginWith, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
                   const SizedBox(height: 12),
 
                   InkWell(
@@ -119,7 +129,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     borderRadius: BorderRadius.circular(50),
                     child: Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade200), color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))]),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey.shade300),
+                        color: isDark ? Colors.grey.shade800 : Colors.white,
+                      ),
                       child: Image.asset('assets/google.png', height: 24),
                     ),
                   ),
@@ -128,12 +142,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                   RichText(
                     text: TextSpan(
-                      text: "Belum punya akun? ",
-                      style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 13),
+                      text: "${l10n.noAccount} ",
+                      style: GoogleFonts.poppins(color: Colors.grey, fontSize: 13),
                       children: [
                         TextSpan(
-                          text: "Daftar",
-                          style: GoogleFonts.poppins(color: const Color(0xFF007BFF), fontWeight: FontWeight.w600),
+                          text: l10n.register,
+                          style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w600),
                           recognizer: TapGestureRecognizer()..onTap = () => context.push('/register'),
                         ),
                       ],
@@ -148,13 +162,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
-  Widget _buildInputLabel(String label) {
+  Widget _buildInputLabel(String label, bool isDark) {
     return Align(
       alignment: Alignment.centerLeft,
       child: RichText(
         text: TextSpan(
           text: label,
-          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: _labelColor),
+          style: GoogleFonts.poppins(
+              fontSize: 16, fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white70 : const Color(0xFF5D534A)
+          ),
           children: [
             TextSpan(text: " *", style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.w500)),
           ],
@@ -163,46 +180,53 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
-  Widget _buildTextField({required String hint, required TextEditingController controller, bool isEmail = false}) {
+  Widget _buildTextField({
+    required String hint,
+    required TextEditingController controller,
+    required AppLocalizations l10n,
+    required bool isDark
+  }) {
     return TextFormField(
       controller: controller,
-      keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
       style: GoogleFonts.poppins(fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400),
+        hintStyle: GoogleFonts.poppins(color: Colors.grey),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _earthyColor)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFD46E46), width: 2)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : const Color(0xFF8D8D8D))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
         errorStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.red),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) return 'Tidak boleh kosong';
-        if (isEmail) {
-          final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-          if (!emailRegex.hasMatch(value)) return 'Format email tidak valid';
-        }
+        if (value == null || value.isEmpty) return l10n.fieldRequired;
         return null;
       },
     );
   }
 
-  Widget _buildPasswordField({required String hint, required TextEditingController controller, required bool isVisible, required VoidCallback onToggle}) {
+  Widget _buildPasswordField({
+    required String hint,
+    required TextEditingController controller,
+    required bool isVisible,
+    required VoidCallback onToggle,
+    required AppLocalizations l10n,
+    required bool isDark
+  }) {
     return TextFormField(
       controller: controller,
       obscureText: !isVisible,
       style: GoogleFonts.poppins(fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400),
+        hintStyle: GoogleFonts.poppins(color: Colors.grey),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        suffixIcon: IconButton(icon: Icon(isVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _earthyColor), onPressed: onToggle),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _earthyColor)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFD46E46), width: 2)),
+        suffixIcon: IconButton(icon: Icon(isVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.grey), onPressed: onToggle),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : const Color(0xFF8D8D8D))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
         errorStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.red),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) return 'Password tidak boleh kosong';
+        if (value == null || value.isEmpty) return l10n.fieldRequired;
         return null;
       },
     );

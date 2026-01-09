@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../../core/constants/app_colors.dart';
+import '../../../l10n/app_localizations.dart';
 import '../viewmodel/history_viewmodel.dart';
 
 class SidebarDrawer extends ConsumerWidget {
@@ -12,9 +15,12 @@ class SidebarDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final historyState = ref.watch(historyViewModelProvider);
     final historyNotifier = ref.read(historyViewModelProvider.notifier);
+    final l10n = AppLocalizations.of(context)!;
+
+    final dateFormat = DateFormat('dd MMM', Localizations.localeOf(context).languageCode);
 
     return Drawer(
-      backgroundColor: const Color(0xFFD46E46),
+      backgroundColor: AppColors.primary,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -25,6 +31,7 @@ class SidebarDrawer extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Tombol Back
                   InkWell(
                     onTap: () => Navigator.pop(context),
                     borderRadius: BorderRadius.circular(20),
@@ -39,11 +46,9 @@ class SidebarDrawer extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    "Menu",
+                    l10n.menu,
                     style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -56,15 +61,19 @@ class SidebarDrawer extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: TextField(
-                      onChanged: (value) => historyNotifier.search(value), // Ini sudah benar
+                      onChanged: (value) => historyNotifier.search(value),
+                      textInputAction: TextInputAction.search, // Keyboard Search
+
                       style: GoogleFonts.poppins(color: Colors.black87, fontSize: 14),
                       decoration: InputDecoration(
-                        hintText: "Cari riwayat saya...",
+                        hintText: l10n.searchHistory,
                         hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500),
-                        prefixIcon: const Icon(Icons.search, color: Color(0xFFD46E46)),
+                        prefixIcon: const Icon(Icons.search, color: AppColors.primary),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       ),
+                      // Tutup keyboard saat enter ditekan
+                      onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                   ),
                 ],
@@ -72,66 +81,65 @@ class SidebarDrawer extends ConsumerWidget {
             ),
             const Divider(color: Colors.white24, thickness: 1),
 
-            // --- LIST RIWAYAT ---
+            // --- LIST HEADER ---
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "Riwayat Deteksi Saya",
+                    l10n.myDetectionHistory,
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Colors.white.withOpacity(0.8),
-                      letterSpacing: 1.2,
+                      letterSpacing: 1.0,
                     ),
                   ),
+                  // [PERBAIKAN TOMBOL REFRESH]
                   GestureDetector(
-                    onTap: () => historyNotifier.loadMyHistory(),
+                    onTap: () {
+                      // Panggil dengan forceRefresh: true agar loading muncul visualnya
+                      historyNotifier.loadMyHistory(forceRefresh: true);
+                    },
                     child: const Icon(Icons.refresh, color: Colors.white70, size: 18),
                   )
                 ],
               ),
             ),
 
+            // --- LIST CONTENT ---
             Expanded(
               child: historyState.isLoading
                   ? const Center(child: CircularProgressIndicator(color: Colors.white))
-              // [FIX 2] Gunakan displayHistory, bukan history
                   : historyState.displayHistory.isEmpty
                   ? Center(
                 child: Text(
-                  "Tidak ditemukan",
+                  l10n.notFound,
                   style: GoogleFonts.poppins(color: Colors.white54),
                 ),
               )
                   : ListView.builder(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                // [FIX 3] Gunakan length dari displayHistory
                 itemCount: historyState.displayHistory.length,
                 itemBuilder: (context, index) {
-                  // [FIX 4] Ambil item dari displayHistory
                   final item = historyState.displayHistory[index];
 
-                  final title = item['faultType'] ?? item['fault_type'] ?? "Tidak diketahui";
+                  final title = item['faultType'] ?? item['fault_type'] ?? l10n.unknown;
                   final status = item['statusLevel'] ?? item['status_level'] ?? "-";
 
-                  String dateStr = "";
+                  String dateStr = "-";
                   try {
                     final date = DateTime.parse(item['createdAt'] ?? item['created_at']);
-                    const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agust", "Sep", "Okt", "Nov", "Des"];
-                    dateStr = "${date.day} ${months[date.month - 1]}";
-                  } catch (e) {
-                    dateStr = "-";
-                  }
+                    dateStr = dateFormat.format(date);
+                  } catch (_) {}
 
                   return _buildDrawerItem(
                     icon: Icons.history,
                     title: "$title - $status",
                     subtitle: dateStr,
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.pop(context); // Tutup drawer dulu
                       context.push('/detection-result', extra: item);
                     },
                   );
@@ -139,6 +147,7 @@ class SidebarDrawer extends ConsumerWidget {
               ),
             ),
 
+            // --- FOOTER ---
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
@@ -164,11 +173,7 @@ class SidebarDrawer extends ConsumerWidget {
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: GoogleFonts.poppins(
-          color: Colors.white,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
+        style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
       ),
       subtitle: subtitle != null ? Text(
         subtitle,

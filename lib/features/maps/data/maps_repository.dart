@@ -7,15 +7,14 @@ class MapsRepository {
   Future<List<dynamic>> getDetectionHistory() async {
     try {
       final token = await SessionService.getAccessToken();
-      if (token == null) return [];
+      // Boleh public access (tanpa token) jika requirement memperbolehkan guest melihat peta
+      // Tapi code ini pakai token, jadi hanya user login yg bisa lihat.
 
       final url = Uri.parse("${AppConstants.apiBaseUrl}/detections");
 
       final response = await http.get(
         url,
-        headers: {
-          "Authorization": "Bearer $token",
-        },
+        headers: token != null ? {"Authorization": "Bearer $token"} : {},
       );
 
       if (response.statusCode == 200) {
