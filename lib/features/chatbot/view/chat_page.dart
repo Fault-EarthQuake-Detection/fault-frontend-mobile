@@ -170,6 +170,39 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          // [BARU] Tombol New Chat / Reset
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.white),
+            tooltip: 'Percakapan Baru',
+            onPressed: () {
+              // Tampilkan dialog konfirmasi
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: Text("Mulai Percakapan Baru?", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                  content: Text("Ini akan menghapus tampilan chat saat ini untuk topik baru.", style: GoogleFonts.poppins()),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text("Batal"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        // Panggil fungsi reset di ViewModel
+                        ref.read(chatViewModelProvider.notifier).startNewChat();
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                      child: const Text("Ya, Mulai Baru", style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [

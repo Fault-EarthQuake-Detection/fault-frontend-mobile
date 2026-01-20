@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geo_valid_app/features/home/viewmodel/home_viewmodel.dart';
 import '../../../core/services/session_service.dart';
+import '../../navigation/viewmodel/navigation_viewmodel.dart';
+import '../../sidebar/viewmodel/history_viewmodel.dart';
 import '../data/auth_repository.dart';
 
 class AuthState {
@@ -68,6 +71,7 @@ class AuthViewModel extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _repository.logout();
     _ref.invalidate(currentUserProvider);
+    _ref.invalidate(bottomNavIndexProvider);
     state = AuthState();
   }
 
