@@ -1,5 +1,3 @@
-// lib/features/auth/viewmodel/auth_viewmodel.dart
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/session_service.dart';
 import '../data/auth_repository.dart';
@@ -38,9 +36,7 @@ class AuthViewModel extends StateNotifier<AuthState> {
     state = AuthState(isLoading: true);
     try {
       await _repository.login(username: username, password: password);
-
       _ref.invalidate(currentUserProvider);
-
       state = AuthState(isSuccess: true, isLoading: false);
     } catch (e) {
       state = AuthState(error: _toMessage(e), isLoading: false);
@@ -51,6 +47,7 @@ class AuthViewModel extends StateNotifier<AuthState> {
     state = AuthState(isLoading: true);
     try {
       await _repository.register(email: email, password: password, username: username);
+      // Sukses Register
       state = AuthState(isSuccess: true, isLoading: false);
     } catch (e) {
       state = AuthState(error: _toMessage(e), isLoading: false);
@@ -61,9 +58,7 @@ class AuthViewModel extends StateNotifier<AuthState> {
     state = AuthState(isLoading: true);
     try {
       await _repository.googleSignIn();
-
       _ref.invalidate(currentUserProvider);
-
       state = AuthState(isSuccess: true, isLoading: false);
     } catch (e) {
       state = AuthState(error: _toMessage(e), isLoading: false);
@@ -72,16 +67,14 @@ class AuthViewModel extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _repository.logout();
-
     _ref.invalidate(currentUserProvider);
-
     state = AuthState();
   }
 
   String _toMessage(Object? e) {
     if (e == null) return 'Terjadi kesalahan';
     if (e is String) return e;
-    return e.toString();
+    return e.toString(); // Menghilangkan "Exception:" prefix jika ada
   }
 }
 

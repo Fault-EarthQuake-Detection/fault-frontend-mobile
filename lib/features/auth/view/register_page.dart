@@ -17,7 +17,6 @@ class RegisterPage extends ConsumerStatefulWidget {
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  // ... controller lainnya sama
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -33,9 +32,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Listener State
     ref.listen(authViewModelProvider, (previous, next) {
       if (next.isSuccess) {
-        context.go('/home');
+        // [FIX] Kalau Register sukses, arahkan ke LOGIN, bukan Home
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registrasi berhasil! Silakan login.'), backgroundColor: Colors.green),
+        );
+        context.go('/login');
       } else if (next.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.error!), backgroundColor: Colors.red),
@@ -86,7 +90,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       controller: _passwordController,
                       isVisible: _isPasswordVisible,
                       onToggle: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                      isMainPassword: true,
+                      isMainPassword: true, // Enable validasi ketat
                       l10n: l10n,
                       isDark: isDark
                   ),
@@ -176,7 +180,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 
-  // --- Helpers (Sama dengan Login, cuma disesuaikan parameter) ---
   Widget _buildInputLabel(String label, bool isDark) {
     return Align(
       alignment: Alignment.centerLeft,
@@ -247,7 +250,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       ),
       validator: (value) {
         if (value == null || value.isEmpty) return l10n.fieldRequired;
-        if (isMainPassword && value.length < 8) return l10n.passwordLength;
+
+        // [FIX] Validasi Sesuai Zod Backend (Huruf Besar, Angka, Simbol)
+        if (isMainPassword) {
+          if (value.length < 8) return "Password minimal 8 karakter";
+          if (!value.contains(RegExp(r'[A-Z]'))) return "Harus ada huruf besar";
+          if (!value.contains(RegExp(r'[0-9]'))) return "Harus ada angka";
+          if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) return "Harus ada simbol unik";
+        }
+
         if (validationCompare != null && value != validationCompare.text) return l10n.passwordMismatch;
         return null;
       },
