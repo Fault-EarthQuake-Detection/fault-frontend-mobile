@@ -8,7 +8,32 @@ class DetectionState {
   final String? error;
   final Map<String, dynamic>? result;
 
-  DetectionState({this.isLoading = false, this.error, this.result});
+  final bool isSaving;
+  final bool isSavedSuccess;
+
+  DetectionState({
+    this.isLoading = false,
+    this.error,
+    this.result,
+    this.isSaving = false,
+    this.isSavedSuccess = false,
+  });
+
+  DetectionState copyWith({
+    bool? isLoading,
+    String? error,
+    Map<String, dynamic>? result,
+    bool? isSaving,
+    bool? isSavedSuccess,
+  }) {
+    return DetectionState(
+      isLoading: isLoading ?? this.isLoading,
+      error: error ?? this.error,
+      result: result ?? this.result,
+      isSaving: isSaving ?? this.isSaving,
+      isSavedSuccess: isSavedSuccess ?? this.isSavedSuccess,
+    );
+  }
 }
 
 class DetectionViewModel extends StateNotifier<DetectionState> {
@@ -16,13 +41,14 @@ class DetectionViewModel extends StateNotifier<DetectionState> {
 
   DetectionViewModel(this._repo) : super(DetectionState());
 
-  Future<void> processDetection({
+  Future<void> analyzeOnly({
     required File imageFile,
     required double latitude,
     required double longitude,
   }) async {
     state = DetectionState(isLoading: true);
     try {
+      // 1. Upload Original, Analisis AI, Cek Lokasi
       final results = await Future.wait([
         _repo.analyzeImage(imageFile),
         _repo.checkLocationRisk(latitude, longitude),
@@ -33,6 +59,7 @@ class DetectionViewModel extends StateNotifier<DetectionState> {
       final locResult = results[1] as Map<String, dynamic>;
       final originalUrl = results[2] as String;
 
+      // 2. Parsing Data AI
       final faultAnalysis = aiResult['fault_analysis'] as Map<String, dynamic>? ?? {};
       final imagesBase64 = aiResult['images_base64'] as Map<String, dynamic>? ?? {};
 
@@ -41,8 +68,12 @@ class DetectionViewModel extends StateNotifier<DetectionState> {
 
       final faultType = faultAnalysis['deskripsi_singkat'] ?? "Tidak Teridentifikasi";
       final visualDesc = faultAnalysis['penjelasan_lengkap'] ?? aiResult['statement'] ?? "-";
-      final rawBase64 = imagesBase64['overlay'];
 
+      // Ambil Base64 Overlay & Mask
+      final rawBase64Overlay = imagesBase64['overlay'];
+      final rawBase64Mask = imagesBase64['mask']; // [BARU] Ambil key 'mask'
+
+      // 3. Parsing Data Lokasi
       String locationStatus = locResult['status'] ?? "AMAN";
       if (locationStatus.contains("PERINGATAN")) locationStatus = "PERINGATAN";
       if (locationStatus.contains("BAHAYA")) locationStatus = "BAHAYA";
@@ -50,6 +81,7 @@ class DetectionViewModel extends StateNotifier<DetectionState> {
       final faultName = locResult['nama_patahan'] ?? "-";
       final distanceKm = double.tryParse(locResult['jarak_km'].toString()) ?? 0.0;
 
+      // 4. Logika Final Status
       String finalStatus = visualStatus;
       if (locationStatus.contains("BAHAYA") || locationStatus.contains("PERINGATAN")) {
         if (visualStatus == "AMAN" || visualStatus == "INFO") {
@@ -59,54 +91,83 @@ class DetectionViewModel extends StateNotifier<DetectionState> {
         }
       }
 
+      // 5. Upload Overlay (Jika ada)
       String overlayUrl = "";
-      if (rawBase64 != null && rawBase64.toString().isNotEmpty) {
-        overlayUrl = await _repo.uploadBase64ToStorage(rawBase64, "overlays");
+      if (rawBase64Overlay != null && rawBase64Overlay.toString().isNotEmpty) {
+        overlayUrl = await _repo.uploadBase64ToStorage(rawBase64Overlay, "overlays");
       }
 
+      // [BARU] 6. Upload Mask (Jika ada)
       String maskImageUrl = "";
-      if (rawBase64 != null && rawBase64.toString().isNotEmpty) {
-        overlayUrl = await _repo.uploadBase64ToStorage(rawBase64, "mask");
+      if (rawBase64Mask != null && rawBase64Mask.toString().isNotEmpty) {
+        // Upload ke folder 'masks' di storage
+        maskImageUrl = await _repo.uploadBase64ToStorage(rawBase64Mask, "masks");
       }
 
-      final fullDescMap = {
-        "visual_description": visualDesc,
-        "visual_status": visualStatus,
-        "location_status": locationStatus,
-        "fault_name": faultName,
-        "fault_distance": distanceKm,
+      // 7. Simpan Hasil Sementara di STATE
+      final tempResult = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "originalUrl": originalUrl,
+        "overlayUrl": overlayUrl,
+        "maskImageUrl": maskImageUrl, // [BARU] Masukkan ke result
+        "faultType": faultType,
+        "status": finalStatus,
+        "description": visualDesc,
+        "images_base64": imagesBase64,
+        "nama_patahan": faultName,
+        "jarak_km": distanceKm,
+        "locationStatus": locationStatus,
+        "visualStatus": visualStatus,
       };
 
-      await _repo.saveDetectionResult(
-        latitude: latitude,
-        longitude: longitude,
-        originalImageUrl: originalUrl,
-        overlayImageUrl: overlayUrl,
-        maskImageUrl: maskImageUrl,
-        detectionResult: faultType,
-        statusLevel: finalStatus,
-        descriptionMap: fullDescMap,
-        address: "$faultName (${distanceKm.toStringAsFixed(1)} km)",
-      );
-
       state = DetectionState(
-          isLoading: false,
-          result: {
-            "status": finalStatus,
-            "faultType": faultType,
-            "description": visualDesc,
-            "originalUrl": originalUrl,
-            "overlayUrl": overlayUrl,
-            "images_base64": imagesBase64,
-            "nama_patahan": faultName,
-            "jarak_km": distanceKm,
-            "locationStatus": locationStatus,
-          }
+        isLoading: false,
+        result: tempResult,
       );
 
     } catch (e) {
       state = DetectionState(isLoading: false, error: e.toString());
     }
+  }
+
+  Future<void> saveResultToDatabase() async {
+    if (state.result == null) return;
+
+    state = state.copyWith(isSaving: true);
+
+    try {
+      final res = state.result!;
+
+      final fullDescMap = {
+        "visual_description": res['description'],
+        "visual_status": res['visualStatus'],
+        "location_status": res['locationStatus'],
+        "fault_name": res['nama_patahan'],
+        "fault_distance": res['jarak_km'],
+      };
+
+      await _repo.saveDetectionResult(
+        latitude: res['latitude'],
+        longitude: res['longitude'],
+        originalImageUrl: res['originalUrl'],
+        overlayImageUrl: res['overlayUrl'],
+        // [BARU] Kirim maskImageUrl ke repository
+        maskImageUrl: res['maskImageUrl'] ?? "",
+        detectionResult: res['faultType'],
+        statusLevel: res['status'],
+        descriptionMap: fullDescMap,
+        address: "${res['nama_patahan']} (${(res['jarak_km'] as double).toStringAsFixed(1)} km)",
+      );
+
+      state = state.copyWith(isSaving: false, isSavedSuccess: true);
+    } catch (e) {
+      state = state.copyWith(isSaving: false, error: "Gagal menyimpan: $e");
+    }
+  }
+
+  void resetState() {
+    state = DetectionState();
   }
 }
 

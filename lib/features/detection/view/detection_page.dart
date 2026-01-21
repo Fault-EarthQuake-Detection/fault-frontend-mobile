@@ -162,9 +162,7 @@ class _DetectionPageState extends ConsumerState<DetectionPage> with WidgetsBindi
           else
             const Center(child: CircularProgressIndicator(color: AppColors.primary)),
 
-          // Kotak Fokus
-          if (!isCaptured && _isCameraInitialized)
-            Center(child: Container(width: size.width * 0.8, height: size.width * 0.8 * (4/3), decoration: BoxDecoration(border: Border.all(color: Colors.white30, width: 2)))),
+          // [FIX] KOTAK FOKUS DIHAPUS SESUAI PERMINTAAN
 
           // Controls
           Positioned(
