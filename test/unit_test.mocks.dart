@@ -4,19 +4,20 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i3;
-import 'dart:io' as _i8;
+import 'dart:io' as _i9;
 
 import 'package:geo_valid_app/features/auth/data/auth_repository.dart' as _i2;
+import 'package:geo_valid_app/features/chatbot/data/chat_message.dart' as _i7;
 import 'package:geo_valid_app/features/chatbot/data/chat_model_type.dart'
     as _i5;
 import 'package:geo_valid_app/features/chatbot/data/chat_repository.dart'
     as _i4;
 import 'package:geo_valid_app/features/detection/data/detection_repository.dart'
-    as _i7;
-import 'package:geo_valid_app/features/home/data/feed_item.dart' as _i11;
-import 'package:geo_valid_app/features/home/data/home_repository.dart' as _i10;
+    as _i8;
+import 'package:geo_valid_app/features/home/data/feed_item.dart' as _i12;
+import 'package:geo_valid_app/features/home/data/home_repository.dart' as _i11;
 import 'package:geo_valid_app/features/profile/data/profile_repository.dart'
-    as _i9;
+    as _i10;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i6;
 
@@ -134,20 +135,51 @@ class MockChatRepository extends _i1.Mock implements _i4.ChatRepository {
           ),
         )),
       ) as _i3.Future<String>);
+
+  @override
+  _i3.Future<void> saveLocalChat(List<_i7.ChatMessage>? messages) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #saveLocalChat,
+          [messages],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<List<_i7.ChatMessage>> loadLocalChat() => (super.noSuchMethod(
+        Invocation.method(
+          #loadLocalChat,
+          [],
+        ),
+        returnValue:
+            _i3.Future<List<_i7.ChatMessage>>.value(<_i7.ChatMessage>[]),
+      ) as _i3.Future<List<_i7.ChatMessage>>);
+
+  @override
+  _i3.Future<void> clearLocalChat() => (super.noSuchMethod(
+        Invocation.method(
+          #clearLocalChat,
+          [],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
 }
 
 /// A class which mocks [DetectionRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockDetectionRepository extends _i1.Mock
-    implements _i7.DetectionRepository {
+    implements _i8.DetectionRepository {
   MockDetectionRepository() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
   _i3.Future<String> uploadImageToStorage(
-    _i8.File? file,
+    _i9.File? file,
     String? folder,
   ) =>
       (super.noSuchMethod(
@@ -196,7 +228,7 @@ class MockDetectionRepository extends _i1.Mock
       ) as _i3.Future<String>);
 
   @override
-  _i3.Future<Map<String, dynamic>> analyzeImage(_i8.File? imageFile) =>
+  _i3.Future<Map<String, dynamic>> analyzeImage(_i9.File? imageFile) =>
       (super.noSuchMethod(
         Invocation.method(
           #analyzeImage,
@@ -259,7 +291,7 @@ class MockDetectionRepository extends _i1.Mock
 /// A class which mocks [ProfileRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockProfileRepository extends _i1.Mock implements _i9.ProfileRepository {
+class MockProfileRepository extends _i1.Mock implements _i10.ProfileRepository {
   MockProfileRepository() {
     _i1.throwOnMissingStub(this);
   }
@@ -276,7 +308,7 @@ class MockProfileRepository extends _i1.Mock implements _i9.ProfileRepository {
 
   @override
   _i3.Future<String> uploadAvatar(
-    _i8.File? file,
+    _i9.File? file,
     String? userId,
   ) =>
       (super.noSuchMethod(
@@ -339,28 +371,28 @@ class MockProfileRepository extends _i1.Mock implements _i9.ProfileRepository {
 /// A class which mocks [HomeRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockHomeRepository extends _i1.Mock implements _i10.HomeRepository {
+class MockHomeRepository extends _i1.Mock implements _i11.HomeRepository {
   MockHomeRepository() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i3.Future<List<_i11.FeedItem>> fetchDetections({int? page = 1}) =>
+  _i3.Future<List<_i12.FeedItem>> fetchDetections({int? page = 1}) =>
       (super.noSuchMethod(
         Invocation.method(
           #fetchDetections,
           [],
           {#page: page},
         ),
-        returnValue: _i3.Future<List<_i11.FeedItem>>.value(<_i11.FeedItem>[]),
-      ) as _i3.Future<List<_i11.FeedItem>>);
+        returnValue: _i3.Future<List<_i12.FeedItem>>.value(<_i12.FeedItem>[]),
+      ) as _i3.Future<List<_i12.FeedItem>>);
 
   @override
-  _i3.Future<List<_i11.FeedItem>> fetchBMKG() => (super.noSuchMethod(
+  _i3.Future<List<_i12.FeedItem>> fetchBMKG() => (super.noSuchMethod(
         Invocation.method(
           #fetchBMKG,
           [],
         ),
-        returnValue: _i3.Future<List<_i11.FeedItem>>.value(<_i11.FeedItem>[]),
-      ) as _i3.Future<List<_i11.FeedItem>>);
+        returnValue: _i3.Future<List<_i12.FeedItem>>.value(<_i12.FeedItem>[]),
+      ) as _i3.Future<List<_i12.FeedItem>>);
 }

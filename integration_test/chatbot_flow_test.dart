@@ -26,7 +26,6 @@ Future<void> delay([int seconds = 2]) async {
   await Future.delayed(Duration(seconds: seconds));
 }
 
-// Fungsi tunggu widget (agar tidak error jika loading lama)
 Future<void> waitFor(WidgetTester tester, Finder finder, {int timeoutSec = 20}) async {
   int retries = 0;
   while (retries < timeoutSec) {
@@ -46,7 +45,6 @@ void main() {
   testWidgets('Chatbot Flow: Login -> RAG -> Gen -> Reset',
           (WidgetTester tester) async {
 
-        // --- AKUN EXISTING ---
         const usernameExisting = "plugin";
         const passwordExisting = "plugin123";
 
@@ -62,8 +60,6 @@ void main() {
         // STEP 1: LOGIN (BYPASS REGISTER)
         // =======================================================================
 
-        // Cek posisi: Launch Page atau Login Page
-        // Jika ada tombol Daftar & Masuk (Launch Page) -> Klik Masuk
         final btnMasuk = find.widgetWithText(ElevatedButton, "Masuk");
         if (find.widgetWithText(ElevatedButton, "Daftar").evaluate().isNotEmpty) {
           print("Posisi Launch Page. Masuk ke Login Page...");
@@ -72,7 +68,6 @@ void main() {
           await delay(2);
         }
 
-        // Pastikan di Login Page
         await waitFor(tester, find.text("Masuk"));
         print("Mengisi Login Form...");
 
@@ -83,22 +78,20 @@ void main() {
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await delay(1);
 
-        await tester.tap(btnMasuk); // Tombol Masuk
+        await tester.tap(btnMasuk);
         print("Login process...");
-        await delay(8); // Tunggu API Login & Home Load
+        await delay(8);
         await tester.pumpAndSettle();
 
         // =======================================================================
         // STEP 2: MASUK CHATBOT
         // =======================================================================
         print("Step 2: Masuk ke Fitur Chatbot");
-        // Cari FAB Chatbot di Home
         await waitFor(tester, find.byType(FloatingActionButton));
         await tester.tap(find.byType(FloatingActionButton));
         await tester.pumpAndSettle();
         await delay(2);
 
-        // Validasi Default Model = RAG
         expect(find.text("GeoValid RAG"), findsOneWidget);
 
         // =======================================================================
@@ -110,13 +103,12 @@ void main() {
 
         await tester.enterText(inputField, "kamu siapa?");
         await tester.tap(sendIcon);
-        await tester.pump(); // Update UI bubble user
+        await tester.pump();
 
         print("Menunggu jawaban RAG...");
         await delay(6);
         await tester.pumpAndSettle();
 
-        // Cek apakah ada balasan (MarkdownBody)
         expect(find.byType(MarkdownBody), findsWidgets);
         print("Bot RAG Menjawab.");
 
@@ -124,13 +116,13 @@ void main() {
         // STEP 4: SWITCH MODEL -> GENERATIVE
         // =======================================================================
         print("Step 4: Switch ke Generative");
-        await tester.tap(find.text("GeoValid RAG")); // Klik AppBar
+        await tester.tap(find.text("GeoValid RAG"));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text("GeoValid Generative")); // Pilih Gen
+        await tester.tap(find.text("GeoValid Generative"));
         await tester.pumpAndSettle();
 
-        expect(find.text("GeoValid Gen"), findsOneWidget); // Validasi Title
+        expect(find.text("GeoValid Gen"), findsOneWidget);
 
         // =======================================================================
         // STEP 5: TANYA MODEL GEN
@@ -140,7 +132,7 @@ void main() {
         await tester.tap(sendIcon);
 
         print("Menunggu jawaban Generative (agak lama)...");
-        await delay(10); // Gen AI biasanya lebih lambat
+        await delay(10);
         await tester.pumpAndSettle();
 
         expect(find.byType(MarkdownBody), findsWidgets);
@@ -148,7 +140,7 @@ void main() {
 
         await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
         await tester.pumpAndSettle();
-        await tester.tap(find.byType(FloatingActionButton)); // Masuk Chat lagi
+        await tester.tap(find.byType(FloatingActionButton));
         await tester.pumpAndSettle();
         expect(find.text("jelaskan apa itu sesar?"), findsOneWidget);
 
@@ -158,25 +150,20 @@ void main() {
         // =======================================================================
         print("Step 6: Hapus Percakapan & Cek Persistence");
 
-        // Hapus
         await tester.tap(find.byIcon(Icons.delete_outline));
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(ElevatedButton, "Ya, Mulai Baru"));
         await tester.pumpAndSettle();
 
-        // Verifikasi bubble chat "sesar" hilang
         expect(find.text("jelaskan apa itu sesar?"), findsNothing);
         print("Chat Reset.");
 
-        // Keluar ke Home -> Masuk Lagi
         await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
         await tester.pumpAndSettle();
-        await tester.tap(find.byType(FloatingActionButton)); // Masuk Chat lagi
+        await tester.tap(find.byType(FloatingActionButton));
         await tester.pumpAndSettle();
 
-        // Verifikasi tetap bersih
         expect(find.text("jelaskan apa itu sesar?"), findsNothing);
-        // Verifikasi pesan welcome ada
         expect(find.textContaining("Percakapan baru"), findsOneWidget);
 
         print("=== TEST 2 CHATBOT SELESAI & SUKSES ===");

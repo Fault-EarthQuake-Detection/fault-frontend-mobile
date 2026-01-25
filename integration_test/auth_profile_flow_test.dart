@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:geo_valid_app/main.dart' as app;
 
-// --- MOCK PERMISSION ---
 void mockPermissionHandler() {
   const MethodChannel channel = MethodChannel('flutter.baseflow.com/permissions/methods');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -36,7 +35,6 @@ void main() {
   testWidgets('Auth Flow: Validasi Form -> Register -> Login -> Edit -> Logout -> Cek Duplikat',
           (WidgetTester tester) async {
 
-        // --- DATA DUMMY ---
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final randomNum = Random().nextInt(1000);
 
@@ -58,7 +56,7 @@ void main() {
         print("Step 1: Masuk ke Register Page");
         final buttonsLaunch = find.byType(ElevatedButton);
         expect(buttonsLaunch, findsAtLeastNWidgets(2));
-        await tester.tap(buttonsLaunch.at(1)); // Tombol Daftar
+        await tester.tap(buttonsLaunch.at(1));
         await tester.pumpAndSettle();
         await delay(2);
 
@@ -97,12 +95,11 @@ void main() {
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await delay(1);
 
-        // [FIX] Pastikan tombol terlihat (kadang tertutup keyboard di layar kecil)
         final btnRegister = find.byType(ElevatedButton).first;
         await tester.ensureVisible(btnRegister);
         await tester.tap(btnRegister);
 
-        await delay(8); // Tunggu API Register
+        await delay(8);
         await tester.pumpAndSettle();
 
         expect(find.text('Masuk'), findsOneWidget);
@@ -122,7 +119,7 @@ void main() {
 
         await tester.tap(find.byType(ElevatedButton).first);
 
-        await delay(10); // Tunggu Login
+        await delay(10);
         await tester.pumpAndSettle();
 
         // =======================================================================
@@ -133,7 +130,6 @@ void main() {
         await tester.pumpAndSettle();
         await delay(2);
 
-        // [FIX] Scroll ke tombol edit jika perlu
         final editMenu = find.byIcon(Icons.edit);
         await tester.scrollUntilVisible(editMenu, 500, scrollable: find.byType(Scrollable).first);
         await tester.tap(editMenu);
@@ -141,29 +137,23 @@ void main() {
         await tester.pumpAndSettle();
         await delay(2);
 
-        // Ganti Nama
         final formEdit = find.byType(TextFormField);
         await tester.tap(formEdit.at(0));
         await tester.enterText(formEdit.at(0), '');
         await tester.enterText(formEdit.at(0), usernameEdit);
 
-        // [CRITICAL FIX] Tutup keyboard & pastikan tombol terlihat
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await delay(2);
 
         final btnSimpan = find.byType(ElevatedButton).first;
-        // Scroll sampai tombol Simpan benar-benar terlihat agar tidak miss-click
         await tester.scrollUntilVisible(btnSimpan, 500, scrollable: find.byType(Scrollable).first);
-        await tester.pumpAndSettle(); // Tunggu scroll selesai
+        await tester.pumpAndSettle();
         await tester.tap(btnSimpan);
 
-        await delay(6); // Tunggu API Update
+        await delay(6);
         await tester.pumpAndSettle();
 
-        // Verifikasi: Kita harus sudah BALIK ke Profile Page
-        // Indikatornya: Ada tombol/icon "Edit" lagi (karena di edit page tidak ada icon edit menu)
         expect(find.byIcon(Icons.edit), findsOneWidget);
-        // Dan teks nama baru ada
         expect(find.text(usernameEdit), findsOneWidget);
         print("Username berhasil diubah & Kembali ke Profile Page.");
 
@@ -173,7 +163,6 @@ void main() {
         print("Step 6: Logout");
 
         final logoutIcon = find.byIcon(Icons.logout);
-        // [FIX] Scroll dulu ke bawah karena Logout ada di paling bawah
         await tester.scrollUntilVisible(logoutIcon, 500, scrollable: find.byType(Scrollable).first);
         await tester.pumpAndSettle();
 
@@ -216,7 +205,6 @@ void main() {
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await delay(1);
 
-        // [FIX] Ensure visible again
         final btnRegDup = find.byType(ElevatedButton).first;
         await tester.ensureVisible(btnRegDup);
         await tester.tap(btnRegDup);
