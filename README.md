@@ -41,7 +41,7 @@ Menggunakan teknologi **Deep Learning**, aplikasi ini menganalisis citra visual 
 
 | **Home Dashboard** | **AI Detection** | **Interactive Maps** | **Analysis Result** |
 |:---:|:---:|:---:|:---:|
-| <img src="screenshoots/detectionscreen.jpeg" width="200"> | <img src="screenshoots/detectionscreen.jpeg" width="200"> | <img src="screenshoots/mapsscreen.jpeg" width="200"> | <img src="screenshoots/detectionresultscreen.jpeg" width="200"> |
+| <img src="screenshoots/homescreen.jpeg" width="200"> | <img src="screenshoots/detectionscreen.jpeg" width="200"> | <img src="screenshoots/mapsscreen.jpeg" width="200"> | <img src="screenshoots/detectionresultscreen.jpeg" width="200"> |
 | *Real-time feeds & updates* | *Camera & Gallery Input* | *Active Fault Visualization* | *AI Overlay & Risk Status* |
 
 | **Location Picker** | **Chatbot** | **User Profile** | **BMKG Detail** |
