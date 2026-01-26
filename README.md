@@ -46,7 +46,7 @@ Menggunakan teknologi **Deep Learning**, aplikasi ini menganalisis citra visual 
 
 | **Location Picker** | **Chatbot** | **User Profile** | **BMKG Detail** |
 |:---:|:---:|:---:|:---:|
-| <img src="screenshots/location.png" width="200"> | <img src="screenshots/chat.png" width="200"> | <img src="screenshots/profile.png" width="200"> | <img src="screenshots/earthquake.png" width="200"> |
+| <img src="screenshoots/locationpickerscreen.jpeg" width="200"> | <img src="screenshoots/chatbotscreen.jpeg" width="200"> | <img src="screenshoots/profilescreen.jpeg" width="200"> | <img src="screenshoots/bmkgdetailscreen.jpeg" width="200"> |
 | *Precision Pinpointing* | *Smart Assistant* | *History & Settings* | *Detailed Quake Info* |
 
 > *Note: Ganti path gambar di atas dengan lokasi screenshot asli Anda di folder `screenshots/`.*
