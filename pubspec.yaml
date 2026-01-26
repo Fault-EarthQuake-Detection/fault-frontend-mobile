@@ -55,6 +55,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.4
 
   # --- Testing Dependencies ---
   integration_test:
@@ -62,6 +63,12 @@ dev_dependencies:
   mockito: ^5.4.4
   build_runner: ^2.4.9
   network_image_mock: ^2.1.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/Logo.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
 
 flutter:
   uses-material-design: true
