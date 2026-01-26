@@ -49,8 +49,6 @@ Menggunakan teknologi **Deep Learning**, aplikasi ini menganalisis citra visual 
 | <img src="screenshoots/locationpickerscreen.jpeg" width="200"> | <img src="screenshoots/chatbotscreen.jpeg" width="200"> | <img src="screenshoots/profilescreen.jpeg" width="200"> | <img src="screenshoots/bmkgdetailscreen.jpeg" width="200"> |
 | *Precision Pinpointing* | *Smart Assistant* | *History & Settings* | *Detailed Quake Info* |
 
-> *Note: Ganti path gambar di atas dengan lokasi screenshot asli Anda di folder `screenshots/`.*
-
 ## 🛠️ Tech Stack & Architecture
 
 Aplikasi ini dibangun menggunakan prinsip **Clean Architecture** dan **Feature-First Structure** untuk memastikan skalabilitas, kemudahan maintenance, dan performa tinggi.
