@@ -68,8 +68,9 @@ class AboutPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            _buildDeveloperItem("Nama Mahasiswa 1", "Role (Mobile Dev)", theme),
-            _buildDeveloperItem("Nama Mahasiswa 2", "Role (AI Engineer)", theme),
+            _buildDeveloperItem("Aura Kresa", "Role (Mobile Dev)", theme),
+            _buildDeveloperItem("Fikal Alif Al Amin", "Role (AI Engineer, and Frontend Web Dev)", theme),
+            _buildDeveloperItem("Fikal Alif Al Amin", "Role (Backend Dev)", theme),
 
             const SizedBox(height: 48),
             Text(
